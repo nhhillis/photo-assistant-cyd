@@ -4,6 +4,7 @@
 #include <string.h>
 #include "exposure.h"
 #include "exposure_state.h"
+#include "countdown.h"
 #include "solar.h"
 
 using namespace pc;
@@ -162,6 +163,40 @@ int main() {
     CHECK_NEAR("film steps wrap", e.film, FILM_COUNT - 1, 0);
     exposureInit(e); for (int i = 0; i < 100; i++) stepFilter(e, +1);
     CHECK_NEAR("filter clamps at 20 stops", e.filterThirds, 60, 0);
+  }
+
+  // --- Countdown timer (times worked by hand)
+  {
+    Countdown c;
+    char b2[24];
+    cdSet(c, 10.f);
+    CHECK_NEAR("countdown set: Ready, 10000 ms", c.state == Countdown::Ready && c.remainingMs == 10000, 1, 0);
+    cdStart(c, 1000);
+    CHECK_NEAR("not done at +4 s", cdUpdate(c, 5000), 0, 0);
+    CHECK_NEAR("remaining after 4 s of 10", c.remainingMs, 6000, 0);
+    cdPause(c, 6000);   // 1 more second counted at pause
+    CHECK_NEAR("pause counts time up to the pause", c.remainingMs, 5000, 0);
+    cdUpdate(c, 20000);
+    CHECK_NEAR("paused time does not run", c.remainingMs, 5000, 0);
+    cdStart(c, 20000);
+    CHECK_NEAR("not done at +4.9 s", cdUpdate(c, 24900), 0, 0);
+    CHECK_NEAR("finishes exactly once (true)", cdUpdate(c, 25000), 1, 0);
+    CHECK_NEAR("finished state is Done, 0 left", c.state == Countdown::Done && c.remainingMs == 0, 1, 0);
+    CHECK_NEAR("no second finish (false)", cdUpdate(c, 26000), 0, 0);
+    cdReset(c);
+    CHECK_NEAR("reset returns to Ready, full time", c.state == Countdown::Ready && c.remainingMs == 10000, 1, 0);
+    cdSet(c, 10.f); cdStart(c, 0xFFFFFF00UL); cdUpdate(c, 0x100UL);   // wraps: 0x200 = 512 ms elapsed
+    CHECK_NEAR("millis() wraparound", c.remainingMs, 10000 - 512, 0);
+    cdSet(c, 1e9f);
+    CHECK_NEAR("capped at 99 h", c.totalMs, 99.0 * 3600 * 1000, 0);
+    formatCountdown(245000, b2, sizeof b2);  CHECK_NEAR("fmt 245 s = 4:05", strcmp(b2, "4:05"), 0, 0);
+    formatCountdown(4320000, b2, sizeof b2); CHECK_NEAR("fmt 4320 s = 1:12:00", strcmp(b2, "1:12:00"), 0, 0);
+    formatCountdown(9400, b2, sizeof b2);    CHECK_NEAR("fmt 9.4 s = 9.4", strcmp(b2, "9.4"), 0, 0);
+    formatCountdown(9401, b2, sizeof b2);    CHECK_NEAR("fmt rounds up 9.401 s = 9.5", strcmp(b2, "9.5"), 0, 0);
+    formatCountdown(10000, b2, sizeof b2);   CHECK_NEAR("fmt 10 s = 10", strcmp(b2, "10"), 0, 0);
+    formatCountdown(59001, b2, sizeof b2);   CHECK_NEAR("fmt 59.001 s = 1:00", strcmp(b2, "1:00"), 0, 0);
+    formatCountdown(1, b2, sizeof b2);       CHECK_NEAR("fmt 1 ms = 0.1 (never 0.0 before done)", strcmp(b2, "0.1"), 0, 0);
+    formatCountdown(0, b2, sizeof b2);       CHECK_NEAR("fmt 0 = 0.0", strcmp(b2, "0.0"), 0, 0);
   }
 
   // --- Time formatting

@@ -11,6 +11,7 @@
 #include "exposure_state.h"
 #include "solar.h"
 #include <string.h>
+#include "countdown.h"
 
 // CYD touch is on its own SPI bus
 #define T_CS 33
@@ -22,7 +23,7 @@
 TFT_eSPI tft;
 XPT2046_Touchscreen ts(T_CS, T_IRQ);
 
-enum Screen { HOME, EXPOSURE, PINHOLE, SUN };
+enum Screen { HOME, EXPOSURE, PINHOLE, SUN, COUNTDOWN };
 Screen screen = HOME;
 uint8_t locIdx = 0;  // index into PRESET_LOCATIONS (custom location: TODO, persist with Preferences)
 
@@ -213,6 +214,7 @@ void drawSun() {
 }
 
 #include "exposure_screen.h"
+#include "countdown_screen.h"
 
 void drawPlaceholder(const char* title) {
   tft.fillScreen(TFT_BLACK);
@@ -248,6 +250,7 @@ void setup() {
 }
 
 void loop() {
+  if (screen == COUNTDOWN) countdownTick();
   static uint32_t lastTap = 0;
   if (ts.tirqTouched() && ts.touched() && millis() - lastTap > 250) {
     lastTap = millis();
@@ -262,7 +265,11 @@ void loop() {
           go(t.target);
         }
     } else if (screen == EXPOSURE) {
-      if (exposureTap(x, y)) go(HOME);
+      int act = exposureTap(x, y);
+      if (act == 1) go(HOME);
+      else if (act == 2) startCountdownScreen();
+    } else if (screen == COUNTDOWN) {
+      if (countdownTap(x, y)) go(EXPOSURE);
     } else {
       go(HOME);
     }

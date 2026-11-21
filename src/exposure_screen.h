@@ -93,7 +93,7 @@ void drawExPanel() {
   pc::formatTime(r.finalTime, t, sizeof t);
   snprintf(pg, sizeof pg, "%d/%d %s", exPage + 1, EX_PAGES, EX_PAGE_NAMES[exPage]);
   tft.setTextColor(C_DIM, C_BG);
-  tft.drawString("EXPOSURE", 6, 6, 2);
+  tft.drawString(r.finalTime >= 1.f ? "TAP TO TIME" : "EXPOSURE", 6, 6, 2);
   tft.drawRightString(pg, 234, 10, 1);
   // double-size digits when they fit, otherwise normal size
   int sz = tft.textWidth(t, 4) * 2 <= 230 ? 2 : 1;
@@ -133,26 +133,27 @@ void drawExposure() {
   drawExButtons();
 }
 
-// Returns true if the tap asked to leave the screen.
-bool exposureTap(int x, int y) {
+// Returns 0 = nothing, 1 = go home, 2 = start the countdown (tap on the result panel, exposure >= 1 s).
+int exposureTap(int x, int y) {
+  if (y < EX_PANEL_H) return pc::exposureCompute(ex).finalTime >= 1.f ? 2 : 0;
   if (y >= EX_BTN_Y) {
-    if (x < 83) return true;
+    if (x < 83) return 1;
     if (x < 163) exPage = (exPage + EX_PAGES - 1) % EX_PAGES;
     else exPage = (exPage + 1) % EX_PAGES;
     drawExposure();
-    return false;
+    return 0;
   }
   for (int i = 0; i < EX_ROWS; i++) {
     if (exRows[i].page != exPage) continue;
     int ry = exRowY(i);
     if (y < ry || y >= ry + EX_ROW_H) continue;
     int dir = x < EX_BTN_W + 3 ? -1 : (x >= 240 - EX_BTN_W - 3 ? +1 : 0);
-    if (dir == 0) return false;
+    if (dir == 0) return 0;
     exRows[i].stepFn(ex, dir);
     drawExRow(i);
     if (exRows[i].stepFn == pc::stepFilm) drawExRow(1);  // changing film resets film speed (same page)
     drawExPanel();
-    return false;
+    return 0;
   }
-  return false;
+  return 0;
 }
