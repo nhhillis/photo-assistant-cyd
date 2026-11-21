@@ -17,20 +17,20 @@ static const TablePt TMY[] = {{0.1f, 0.1f}, {1.f, 1.26f}, {10.f, 15.f}, {100.f, 
 #define KODAK_COLOR "Ballpark P=1.30 (community); Kodak gives no data >1 s. Expect color shift."
 
 const Film FILMS[] = {
-    // id           name                    model              p     table nT dev     nD  limit color source
-    {"tmx100", "Kodak T-Max 100", RecipModel::Table, 0.f, TMX, 4, nullptr, 0, 100.f, false, "Kodak F-4016 (verify vs printed sheet)"},
-    {"tmy400", "Kodak T-Max 400", RecipModel::Table, 0.f, TMY, 4, nullptr, 0, 100.f, false, "Kodak F-4016 (verify vs printed sheet)"},
-    {"trix400", "Kodak Tri-X 400", RecipModel::Table, 0.f, TRIX, 4, TRIX_DEV, 4, 100.f, false, "Kodak F-4017"},
-    {"delta100", "Ilford Delta 100", RecipModel::Power, 1.26f, nullptr, 0, nullptr, 0, 100.f, false, ILFORD},
-    {"fp4", "Ilford FP4+", RecipModel::Power, 1.26f, nullptr, 0, nullptr, 0, 100.f, false, ILFORD},
-    {"hp5", "Ilford HP5+", RecipModel::Power, 1.31f, nullptr, 0, nullptr, 0, 100.f, false, ILFORD},
-    {"panf", "Ilford Pan F+", RecipModel::Power, 1.33f, nullptr, 0, nullptr, 0, 100.f, false, ILFORD},
-    {"ortho", "Ilford Ortho+", RecipModel::Power, 1.25f, nullptr, 0, nullptr, 0, 100.f, false, ILFORD},
-    {"kent100", "Kentmere 100", RecipModel::Power, 1.26f, nullptr, 0, nullptr, 0, 100.f, false, ILFORD},
-    {"kent400", "Kentmere 400", RecipModel::Power, 1.30f, nullptr, 0, nullptr, 0, 100.f, false, ILFORD},
-    {"gold200", "Kodak Gold 200", RecipModel::Power, 1.30f, nullptr, 0, nullptr, 0, 1.f, true, KODAK_COLOR},
-    {"ektar100", "Kodak Ektar 100", RecipModel::Power, 1.30f, nullptr, 0, nullptr, 0, 1.f, true, KODAK_COLOR},
-    {"portra160", "Kodak Portra 160", RecipModel::Power, 1.30f, nullptr, 0, nullptr, 0, 1.f, true, KODAK_COLOR},
+    // id           name                    model              p     table nT dev     nD  limit color source  boxIso
+    {"tmx100", "Kodak T-Max 100", RecipModel::Table, 0.f, TMX, 4, nullptr, 0, 100.f, false, "Kodak F-4016 (verify vs printed sheet)", 100},
+    {"tmy400", "Kodak T-Max 400", RecipModel::Table, 0.f, TMY, 4, nullptr, 0, 100.f, false, "Kodak F-4016 (verify vs printed sheet)", 400},
+    {"trix400", "Kodak Tri-X 400", RecipModel::Table, 0.f, TRIX, 4, TRIX_DEV, 4, 100.f, false, "Kodak F-4017", 400},
+    {"delta100", "Ilford Delta 100", RecipModel::Power, 1.26f, nullptr, 0, nullptr, 0, 100.f, false, ILFORD, 100},
+    {"fp4", "Ilford FP4+", RecipModel::Power, 1.26f, nullptr, 0, nullptr, 0, 100.f, false, ILFORD, 125},
+    {"hp5", "Ilford HP5+", RecipModel::Power, 1.31f, nullptr, 0, nullptr, 0, 100.f, false, ILFORD, 400},
+    {"panf", "Ilford Pan F+", RecipModel::Power, 1.33f, nullptr, 0, nullptr, 0, 100.f, false, ILFORD, 50},
+    {"ortho", "Ilford Ortho+", RecipModel::Power, 1.25f, nullptr, 0, nullptr, 0, 100.f, false, ILFORD, 80},
+    {"kent100", "Kentmere 100", RecipModel::Power, 1.26f, nullptr, 0, nullptr, 0, 100.f, false, ILFORD, 100},
+    {"kent400", "Kentmere 400", RecipModel::Power, 1.30f, nullptr, 0, nullptr, 0, 100.f, false, ILFORD, 400},
+    {"gold200", "Kodak Gold 200", RecipModel::Power, 1.30f, nullptr, 0, nullptr, 0, 1.f, true, KODAK_COLOR, 200},
+    {"ektar100", "Kodak Ektar 100", RecipModel::Power, 1.30f, nullptr, 0, nullptr, 0, 1.f, true, KODAK_COLOR, 100},
+    {"portra160", "Kodak Portra 160", RecipModel::Power, 1.30f, nullptr, 0, nullptr, 0, 1.f, true, KODAK_COLOR, 160},
 };
 const uint8_t FILM_COUNT = sizeof(FILMS) / sizeof(FILMS[0]);
 

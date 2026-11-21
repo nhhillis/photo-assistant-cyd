@@ -30,6 +30,7 @@ struct Film {
   float dataLimit;        // seconds; beyond this the result is extrapolated / untested
   bool color;             // color negative: show experimental + color-shift warning
   const char* source;     // where the numbers came from (shown on the info screen)
+  uint16_t boxIso;        // manufacturer's box speed (default film ISO in the exposure stack)
 };
 
 extern const Film FILMS[];

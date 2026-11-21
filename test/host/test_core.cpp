@@ -1,7 +1,9 @@
 // Host-side tests for PhotoCore. Build/run: make -C test/host
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 #include "exposure.h"
+#include "exposure_state.h"
 #include "solar.h"
 
 using namespace pc;
@@ -58,6 +60,79 @@ int main() {
   CHECK_NEAR("EV15 f/16 ISO100", timeFromEV(15, 16, 100), 1.0 / 128, 1e-4);
   CHECK_NEAR("scale f/16 -> f/167 (x109)", scaleToAperture(1.0 / 125, 16, 166.7f), 1.0 / 125 * 108.5, 0.1);
   CHECK_NEAR("bellows 2x ext = 4x", bellowsFactor(200, 100), 4, 1e-5);
+
+  // --- Exposure state stack. Expected values are worked by hand from published anchors, not copied from the code.
+  {
+    ExposureState e;
+    ExposureResult r;
+    auto findIdx = [](const char* id) { for (int i = 0; i < FILM_COUNT; i++) if (!strcmp(FILMS[i].id, id)) return i; return -1; };
+    auto setTime = [](ExposureState& st, float t) { st.timeIdx = 0; while (SHUTTER_S[st.timeIdx] < t * 0.99f) st.timeIdx++; };
+    int hp5 = findIdx("hp5"), trix = findIdx("trix400"), ektar = findIdx("ektar100");
+
+    exposureInit(e);
+    r = exposureCompute(e);
+    CHECK_NEAR("defaults: FP4+ box ISO 125", e.filmIso, 125, 0);
+    CHECK_NEAR("defaults: 1/60 @ ISO100 -> ISO125 = 1/75 s", r.finalTime, 1.0 / 75, 1e-5);  // 1/60 * 100/125, by hand
+    CHECK_NEAR("defaults: total stops = log2(100/125)", r.totalStops, -0.3219, 1e-3);
+
+    // Ilford's own example: HP5+ 10 s -> 20.4 s. Get exactly 10 s from 1 s by going f/16 -> f/50.6 (x10).
+    exposureInit(e); exposureSetFilm(e, hp5);
+    e.meterIsoIdx = 12;  // meter ISO 400 = HP5+ box speed
+    setTime(e, 1.f); e.shootAperture = 16.f * sqrtf(10.f);
+    r = exposureCompute(e);
+    CHECK_NEAR("stack: 1 s @f/16 -> f/50.6 = 10 s", r.baseTime, 10.0, 0.01);
+    CHECK_NEAR("stack: HP5+ 10 s -> Ilford 20.4 s", r.finalTime, 20.4, 0.1);
+
+    // Kodak anchors through the stack (Tri-X: 1 s -> 2 s, 10 s -> 50 s, dev -20% at 10 s)
+    exposureInit(e); exposureSetFilm(e, trix); e.meterIsoIdx = 12;
+    setTime(e, 1.f / 4); e.bellowsMm = 200; e.focalMm = 100;   // bellows 2x extension = x4 -> exactly 1 s
+    r = exposureCompute(e);
+    CHECK_NEAR("bellows 200/100 on 1/4 s -> 1 s", r.baseTime, 1.0, 1e-4);
+    CHECK_NEAR("Tri-X 1 s -> 2 s (Kodak)", r.finalTime, 2.0, 0.01);
+    e.bellowsMm = 0; setTime(e, 1.f / 8); e.filterThirds = 9;  // 3 stops of ND: 1/8 s -> 1 s
+    CHECK_NEAR("ND 3 stops on 1/8 s -> 1 s", exposureCompute(e).baseTime, 1.0, 1e-4);
+    setTime(e, 1.f); e.filterThirds = 0; e.shootAperture = 16.f * sqrtf(10.f);
+    r = exposureCompute(e);
+    CHECK_NEAR("Tri-X 10 s -> 50 s (Kodak)", r.finalTime, 50.0, 0.3);
+    CHECK_NEAR("Tri-X dev at 10 s = -20%", r.devPct, -20, 0.1);
+    CHECK_NEAR("total stops = log2(50/1)", r.totalStops, 5.644, 0.01);
+
+    // Aperture and ISO scaling by hand: f/16->f/32 = x4; meter ISO 100 -> film 400 = /4
+    exposureInit(e); e.filmIso = 100; e.shootAperture = 32;
+    CHECK_NEAR("f/16 -> f/32 quadruples", exposureCompute(e).baseTime, 4.0 / 60, 1e-5);
+    exposureInit(e); e.filmIso = 400;
+    CHECK_NEAR("meter ISO 100, film 400 -> quarter", exposureCompute(e).baseTime, 1.0 / 240, 1e-6);
+
+    // Bellows at or below the focal length gives no compensation
+    exposureInit(e); e.filmIso = 100; e.bellowsMm = 150; e.focalMm = 150;
+    CHECK_NEAR("bellows = focal -> no compensation", exposureCompute(e).baseTime, 1.0 / 60, 1e-6);
+
+    // Warnings
+    exposureInit(e); exposureSetFilm(e, ektar);
+    CHECK_NEAR("color film sets warning", exposureCompute(e).colorWarning, 1, 0);
+    exposureInit(e); exposureSetFilm(e, trix); setTime(e, 1800.f);
+    CHECK_NEAR("1800 s on Tri-X beyond data", exposureCompute(e).beyondData, 1, 0);
+    exposureInit(e);
+    r = exposureCompute(e);
+    CHECK_NEAR("default shows no warnings", r.beyondData || r.colorWarning, 0, 0);
+
+    // Stepping clamps; bellows never negative; film steps wrap
+    exposureInit(e);
+    for (int i = 0; i < 100; i++) stepTime(e, +1);
+    CHECK_NEAR("time clamps at top", e.timeIdx, SHUTTER_COUNT - 1, 0);
+    for (int i = 0; i < 100; i++) stepTime(e, -1);
+    CHECK_NEAR("time clamps at bottom", e.timeIdx, 0, 0);
+    stepBellows(e, -1);
+    CHECK_NEAR("bellows >= 0", e.bellowsMm, 0, 0);
+    exposureInit(e); stepTime(e, +1);
+    CHECK_NEAR("step time up from 1/60 = 1/30", SHUTTER_S[e.timeIdx], 1.0 / 30, 1e-6);
+    exposureInit(e); stepFilm(e, -1); stepFilm(e, +1);
+    CHECK_NEAR("film step round trip", strcmp(FILMS[e.film].id, "fp4"), 0, 0);
+    exposureInit(e); e.film = 0; stepFilm(e, -1);
+    CHECK_NEAR("film steps wrap", e.film, FILM_COUNT - 1, 0);
+    exposureInit(e); for (int i = 0; i < 100; i++) stepFilter(e, +1);
+    CHECK_NEAR("filter clamps at 20 stops", e.filterThirds, 60, 0);
+  }
 
   // --- Time formatting
   char b[32];
