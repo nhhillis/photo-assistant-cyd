@@ -43,6 +43,15 @@ Recip reciprocity(const Film& f, float tm) {
   return r;
 }
 
+Recip reciprocityTuned(const Film& f, float tm, float k) {
+  Recip r = reciprocity(f, tm);
+  if (tm <= 0.f || k == 1.f) return r;
+  r.stops *= k;
+  r.tc = tm * powf(2.f, r.stops);
+  r.applied = fabsf(r.tc - tm) > 1e-6f * tm;
+  return r;
+}
+
 float filterFactorFromStops(float stops) { return powf(2.f, stops); }
 float bellowsFactor(float extensionMm, float focalMm) {
   float m = extensionMm / focalMm;

@@ -21,6 +21,13 @@ static void vBellows(char* o, int n) {
   if (ex.bellowsMm <= ex.focalMm) snprintf(o, n, "off");
   else snprintf(o, n, "%d mm", (int)ex.bellowsMm);
 }
+static void vTune(char* o, int n) {
+  float k = pc::tuneGet(ex.film);
+  if (k == 1.f) snprintf(o, n, "x1.00 (as published)");
+  else snprintf(o, n, "x%.2f", k);
+}
+static void vTuneReset(char* o, int n) { snprintf(o, n, "tap to reset"); }
+const int EX_TUNE_RESET_ROW = 11;
 static void vFocal(char* o, int n) { snprintf(o, n, "%d mm", (int)ex.focalMm); }
 
 const Row exRows[] = {
@@ -36,9 +43,13 @@ const Row exRows[] = {
     {"FILTER / ND", 2, false, [](int d) { pc::stepFilter(ex, d); }, vFilter},
     {"BELLOWS EXTENSION", 2, false, [](int d) { pc::stepBellows(ex, d); }, vBellows},
     {"LENS FOCAL LENGTH", 2, false, [](int d) { pc::stepFocal(ex, d); }, vFocal},
+    // page 3: tune this film's reciprocity curve from test frames (saved to flash, per film)
+    {"FILM", 3, true, [](int d) { pc::stepFilm(ex, d); }, vFilm},
+    {"RECIPROCITY TUNE", 3, false, [](int d) { pc::stepFilmTune(ex, d); saveTune(ex.film); }, vTune},
+    {"RESET THIS FILM", 3, false, [](int) {}, vTuneReset},
 };
-const char* const exPageNames[] = {"SETUP", "METER", "COMPENSATION"};
-RowPage exPage = {exRows, sizeof(exRows) / sizeof(exRows[0]), 3, exPageNames, 0, 0};
+const char* const exPageNames[] = {"SETUP", "METER", "COMPENSATION", "FILM TUNING"};
+RowPage exPage = {exRows, sizeof(exRows) / sizeof(exRows[0]), 4, exPageNames, 0, 0};
 
 void drawExPanel() {
   const uint16_t green = RGB(60, 230, 110), warn = RGB(255, 90, 70);
@@ -58,7 +69,8 @@ void drawExPanel() {
   tft.setTextSize(1);
   snprintf(line, sizeof line, "%+.1f stops", r.totalStops);
   if (r.devPct != 0.f) snprintf(line + strlen(line), sizeof line - strlen(line), "   Dev %+.0f%%", r.devPct);
-  tft.setTextColor(C_TEXT, C_BG);
+  if (pc::tuneGet(ex.film) != 1.f && strlen(line) < 22) snprintf(line + strlen(line), sizeof line - strlen(line), "  tuned");
+  tft.setTextColor(pc::tuneGet(ex.film) != 1.f ? RGB(255, 170, 40) : C_TEXT, C_BG);
   tft.drawCentreString(line, 120, 78, 2);
   tft.setTextColor(warn, C_BG);
   int wy = 96;
@@ -83,6 +95,14 @@ int exposureTap(int x, int y) {
     case RP_PANEL: return pc::exposureCompute(ex).finalTime >= 1.f ? 2 : 0;
     case RP_CHANGED: drawExPanel(); return 0;
     case RP_PAGE: drawExposure(); return 0;
+    case RP_CENTER:
+      if (exPage.lastRow == EX_TUNE_RESET_ROW) {
+        pc::tuneSet(ex.film, 1.0f);
+        saveTune(ex.film);
+        rpDrawRows(exPage);
+        drawExPanel();
+      }
+      return 0;
     default: return 0;
   }
 }

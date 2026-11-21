@@ -40,6 +40,13 @@ struct ExposureResult {
   bool colorWarning;  // color film: experimental, expect color shift
 };
 
+// Per-film reciprocity tuning factor (see reciprocityTuned). One shared table, indexed like FILMS,
+// used by every screen. Default 1.0; the UI persists it. Range 0.50..2.00 in 0.05 steps.
+float tuneGet(uint8_t film);
+void tuneSet(uint8_t film, float k);  // clamps and rounds to 0.05
+void tuneReset();                     // all films back to 1.0
+void stepFilmTune(ExposureState& s, int dir);
+
 void exposureInit(ExposureState& s);                   // 1/60 @ f/16, meter ISO 100, Ilford FP4+
 void exposureSetFilm(ExposureState& s, uint8_t film);  // also resets filmIso to the box speed
 ExposureResult exposureCompute(const ExposureState& s);

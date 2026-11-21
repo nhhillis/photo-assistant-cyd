@@ -238,6 +238,41 @@ int main() {
     CHECK_NEAR("decimals capped at 5", (neKey(e2, '1'), neKey(e2, '1'), neKey(e2, '1'), neKey(e2, '1'), neKey(e2, '1'), neKey(e2, '1')), 0, 0);
   }
 
+  // --- Per-film reciprocity tuning (stops scale by k; values worked by hand)
+  {
+    tuneReset();
+    const Film* hp = findFilm("hp5");
+    const Film* tx = findFilm("trix400");
+    CHECK_NEAR("tuned k=1 = published (HP5+ 10 s -> 20.4)", reciprocityTuned(*hp, 10, 1.f).tc, 20.4, 0.1);
+    CHECK_NEAR("tuned k=0 disables correction", reciprocityTuned(*hp, 10, 0.f).tc, 10.0, 1e-4);
+    // HP5+ 10 s: 10^1.31 = 20.42 s = 1.0306 stops; k=1.5 -> 1.5459 stops -> 10 * 2^1.5459 = 29.2 s
+    CHECK_NEAR("HP5+ k=1.5 -> 29.2 s", reciprocityTuned(*hp, 10, 1.5f).tc, 29.2, 0.1);
+    // Tri-X 10 s -> 50 s = 2.3219 stops; k=0.5 -> 1.161 stops = x sqrt(5) -> 22.36 s
+    CHECK_NEAR("Tri-X k=0.5 -> 22.36 s (half the stops)", reciprocityTuned(*tx, 10, 0.5f).tc, 22.36, 0.05);
+    CHECK_NEAR("tuning does nothing at 1 s or less (HP5+ 0.5 s)", reciprocityTuned(*hp, 0.5f, 2.f).tc, 0.5, 1e-5);
+    CHECK_NEAR("tuned flag keeps beyondData", reciprocityTuned(*tx, 1000, 0.5f).beyondData, 1, 0);
+    CHECK_NEAR("tuned stops reported", reciprocityTuned(*tx, 10, 0.5f).stops, 1.161, 0.005);
+
+    ExposureState e;
+    exposureInit(e);
+    int hpi = 0; for (int i = 0; i < FILM_COUNT; i++) if (!strcmp(FILMS[i].id, "hp5")) hpi = i;
+    exposureSetFilm(e, hpi); e.meterIsoIdx = 12;
+    e.timeIdx = 0; while (SHUTTER_S[e.timeIdx] < 1.f) e.timeIdx++;
+    e.shootAperture = 16.f * sqrtf(10.f);   // 10 s
+    CHECK_NEAR("stack uses tune 1.0 by default", exposureCompute(e).finalTime, 20.4, 0.1);
+    stepFilmTune(e, +1); stepFilmTune(e, +1);
+    CHECK_NEAR("two + steps = 1.10", tuneGet(hpi), 1.10, 1e-5);
+    CHECK_NEAR("stack follows tune: 10 s at k=1.1 = 10*2^(1.1*1.0306)", exposureCompute(e).finalTime, 10 * pow(2, 1.1 * 1.0306), 0.1);
+    exposureSetFilm(e, (hpi + 1) % FILM_COUNT);
+    CHECK_NEAR("tune is per film", tuneGet((hpi + 1) % FILM_COUNT), 1.0, 1e-6);
+    for (int i = 0; i < 100; i++) stepFilmTune(e, +1);
+    CHECK_NEAR("tune clamps at 2.0", tuneGet(e.film), 2.0, 1e-5);
+    for (int i = 0; i < 100; i++) stepFilmTune(e, -1);
+    CHECK_NEAR("tune clamps at 0.5", tuneGet(e.film), 0.5, 1e-5);
+    tuneReset();
+    CHECK_NEAR("reset returns to 1.0", tuneGet(hpi), 1.0, 1e-6);
+  }
+
   // --- Countdown timer (times worked by hand)
   {
     Countdown c;

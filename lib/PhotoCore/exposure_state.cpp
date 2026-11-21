@@ -16,6 +16,37 @@ const uint8_t FOCAL_COUNT = sizeof(FOCALS) / sizeof(FOCALS[0]);
 const uint16_t ISOS[] = {6, 12, 25, 50, 64, 80, 100, 125, 160, 200, 250, 320, 400, 800, 1600, 3200};
 const uint8_t ISO_COUNT = sizeof(ISOS) / sizeof(ISOS[0]);
 
+static const int MAX_TUNED_FILMS = 32;
+static float tuneTable[MAX_TUNED_FILMS];
+static bool tuneReady = false;
+
+static void tuneEnsure() {
+  if (tuneReady) return;
+  for (int i = 0; i < MAX_TUNED_FILMS; i++) tuneTable[i] = 1.f;
+  tuneReady = true;
+}
+
+float tuneGet(uint8_t film) {
+  tuneEnsure();
+  return film < MAX_TUNED_FILMS ? tuneTable[film] : 1.f;
+}
+
+void tuneSet(uint8_t film, float k) {
+  tuneEnsure();
+  if (film >= MAX_TUNED_FILMS) return;
+  k = roundf(k * 20.f) / 20.f;
+  if (k < 0.5f) k = 0.5f;
+  if (k > 2.f) k = 2.f;
+  tuneTable[film] = k;
+}
+
+void tuneReset() {
+  tuneReady = false;
+  tuneEnsure();
+}
+
+void stepFilmTune(ExposureState& s, int dir) { tuneSet(s.film, tuneGet(s.film) + dir * 0.05f); }
+
 static uint8_t indexOfNearest(const float* v, uint8_t n, float x) {
   uint8_t best = 0;
   for (uint8_t i = 1; i < n; i++)
@@ -56,7 +87,7 @@ ExposureResult exposureCompute(const ExposureState& s) {
   t *= filterFactorFromStops(s.filterThirds / 3.f);
   if (s.bellowsMm > s.focalMm && s.focalMm > 0.f) t *= bellowsFactor(s.bellowsMm, s.focalMm);
   r.baseTime = t;
-  Recip rc = reciprocity(f, t);
+  Recip rc = reciprocityTuned(f, t, tuneGet(s.film));
   r.finalTime = rc.tc;
   r.recipStops = rc.stops;
   r.devPct = rc.devPct;

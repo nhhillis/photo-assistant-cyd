@@ -14,6 +14,10 @@ struct Recip {
 
 // Reciprocity-corrected time for a metered time tm (seconds) on a film.
 Recip reciprocity(const Film& f, float tm);
+// Same, with a user tuning factor k on the stops reciprocity adds: tc = tm * 2^(k * stops).
+// k = 1 is the published curve, k = 0 disables it, k = 1.5 adds half as many extra stops again.
+// For a Power film this is the same as using P' = 1 + k * (P - 1).
+Recip reciprocityTuned(const Film& f, float tm, float k);
 
 // Filter / ND helpers (multiply the metered time BEFORE reciprocity).
 float filterFactorFromStops(float stops);   // 2^stops

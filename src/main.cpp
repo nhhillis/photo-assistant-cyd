@@ -206,6 +206,7 @@ void toScreen(int rx, int ry, int& x, int& y) {
 }
 
 #include "rowpage.h"
+#include "tune_store.h"
 #include "exposure_screen.h"
 #include "pinhole_screen.h"
 #include "countdown_screen.h"
@@ -242,6 +243,7 @@ void setup() {
   pc::pinholeInit(ph);
   loadCalibration();
   loadCustomLoc();
+  loadTune();
   delay(100);
   if (!cal.ok || ts.touched()) runCalibration();
   Serial.printf("Films loaded: %u\n", pc::FILM_COUNT);
