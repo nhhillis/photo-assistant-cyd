@@ -24,6 +24,7 @@ static uint32_t ckT0 = 0;
 
 static void ckStartConnect() {
   WiFi.mode(WIFI_STA);
+  Serial.printf("[clock] connecting to network %d (\"%s\")\n", ckNet, WIFI_NETS[ckNet].ssid);
   WiFi.begin(WIFI_NETS[ckNet].ssid, WIFI_NETS[ckNet].pass);
   ckT0 = millis();
   ckState = CK_CONNECTING;
@@ -36,6 +37,7 @@ static void ckWifiOff() {
 
 // Start (or restart) a sync attempt through the configured networks in order.
 void clockBegin() {
+  Serial.printf("[clock] %u network(s) configured\n", (unsigned)WIFI_NET_COUNT);
   if (WIFI_NET_COUNT == 0) {
     ckState = CK_NO_WIFI_CONFIG;
     return;
@@ -71,6 +73,7 @@ bool clockTick() {
       ckState = CK_FAILED;
     }
   }
+  if (ckState != before) Serial.printf("[clock] state %d -> %d (wifi status %d)\n", (int)before, (int)ckState, (int)WiFi.status());
   return ckState != before;
 }
 

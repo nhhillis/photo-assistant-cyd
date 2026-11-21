@@ -241,6 +241,7 @@ void setup() {
   delay(100);
   if (!cal.ok || ts.touched()) runCalibration();
   Serial.printf("Films loaded: %u\n", pc::FILM_COUNT);
+  clockBegin();  // WiFi + NTP in the background; the Home footer shows progress
   go(HOME);
 }
 
