@@ -14,6 +14,8 @@
 #include "countdown.h"
 #include "pinhole_state.h"
 #include "numentry.h"
+#include "textentry.h"
+#include "settings_store.h"
 #include "clock_sync.h"
 
 // CYD touch is on its own SPI bus
@@ -26,13 +28,13 @@
 TFT_eSPI tft;
 XPT2046_Touchscreen ts(T_CS, T_IRQ);
 
-enum Screen { HOME, EXPOSURE, PINHOLE, SUN, COUNTDOWN, LOC_EDIT, KEYPAD };
+enum Screen { HOME, EXPOSURE, PINHOLE, SUN, COUNTDOWN, LOC_EDIT, KEYPAD, SETTINGS, KEYBOARD };
 Screen screen = HOME;
 uint8_t locIdx = 0;  // 0..PRESET_COUNT-1 = presets, PRESET_COUNT = saved custom location (location_state.h)
 #include "location_state.h"
 
 // ---- Home screen look: dark navy, accent-colored tiles with drawn icons ----
-enum Icon { ICON_APERTURE, ICON_PINHOLE, ICON_SUN, ICON_METER };
+enum Icon { ICON_APERTURE, ICON_PINHOLE, ICON_SUN, ICON_METER, ICON_GEAR };
 
 struct Tile {
   const char* label;
@@ -54,7 +56,7 @@ Tile tiles[] = {
     {"Exposure", "reciprocity", EXPOSURE, ICON_APERTURE, RGB(255, 170, 40), true, 8, 76, 108, 106},
     {"Pinhole", "f-number & time", PINHOLE, ICON_PINHOLE, RGB(70, 200, 230), true, 124, 76, 108, 106},
     {"Sun / Golden", "light times", SUN, ICON_SUN, RGB(255, 110, 90), true, 8, 190, 108, 106},
-    {"Light Meter", "coming soon", HOME, ICON_METER, RGB(80, 86, 105), false, 124, 190, 108, 106},
+    {"Settings", "clock & WiFi", SETTINGS, ICON_GEAR, RGB(150, 165, 200), true, 124, 190, 108, 106},
 };
 
 void drawIcon(Icon ic, int cx, int cy, uint16_t col, uint16_t bg) {
@@ -99,6 +101,16 @@ void drawIcon(Icon ic, int cx, int cy, uint16_t col, uint16_t bg) {
       tft.fillRect(cx - r - 4, cy + 7, 2 * r + 8, 14, bg);
       tft.drawFastHLine(cx - r - 2, cy + 7, 2 * r + 4, col);
       tft.drawFastHLine(cx - r + 6, cy + 12, 2 * r - 12, col);
+      break;
+    }
+    case ICON_GEAR: {  // ring with eight teeth
+      tft.drawCircle(cx, cy, 11, col);
+      tft.drawCircle(cx, cy, 10, col);
+      tft.drawCircle(cx, cy, 4, col);
+      for (int i = 0; i < 8; i++) {
+        float ang = i * 0.7854f;
+        tft.fillCircle(cx + cosf(ang) * 16, cy + sinf(ang) * 16, 3, col);
+      }
       break;
     }
     case ICON_METER: {  // simple dial
@@ -211,6 +223,7 @@ void toScreen(int rx, int ry, int& x, int& y) {
 #include "pinhole_screen.h"
 #include "countdown_screen.h"
 #include "sun_screen.h"
+#include "settings_screen.h"
 #include "location_screens.h"
 #include "state_store.h"
 
@@ -229,6 +242,7 @@ void go(Screen s) {
   else if (s == SUN) drawSun();
   else if (s == EXPOSURE) drawExposure();
   else if (s == PINHOLE) drawPinhole();
+  else if (s == SETTINGS) drawSettings();
   else drawPlaceholder("Pinhole");
 }
 
@@ -246,6 +260,8 @@ void setup() {
   loadCalibration();
   loadCustomLoc();
   loadTune();
+  loadSettings();
+  clockApplyZone();
   loadState();
   delay(100);
   if (!cal.ok || ts.touched()) runCalibration();
@@ -258,6 +274,7 @@ void loop() {
   if (clockTick()) {  // sync state changed: refresh whatever shows the clock
     if (screen == HOME) drawHomeFooter();
     else if (screen == SUN) drawSun();
+    else if (screen == SETTINGS) drawSettings();
   }
   stateTick();
   if (screen == COUNTDOWN) countdownTick();
@@ -291,6 +308,13 @@ void loop() {
       else if (act == 2) startCountdownScreen(pc::pinholeCompute(ph).exp.finalTime, pc::FILMS[ph.ex.film].name, PINHOLE);
     } else if (screen == SUN) {
       if (sunTap(x, y)) go(HOME);
+    } else if (screen == SETTINGS) {
+      if (settingsTap(x, y)) go(HOME);
+    } else if (screen == KEYBOARD) {
+      if (keyboardTap(x, y)) {
+        screen = SETTINGS;
+        drawSettings();
+      }
     } else if (screen == LOC_EDIT) {
       if (locEditTap(x, y)) go(SUN);
     } else if (screen == KEYPAD) {

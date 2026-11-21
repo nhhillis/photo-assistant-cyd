@@ -3,7 +3,7 @@
 Large tap targets (>= 40 px) for cold or gloved fingers. Core math is in `lib/PhotoCore`; screens only call it. Colors: dark navy background, amber accents, results in green.
 
 ## Home
-2x2 grid of tiles (Exposure, Pinhole, Sun / Golden, a dimmed Light Meter "coming soon"), a location chip under the header, and a footer with the clock status ("Clock: synced 10:41 AM", "syncing...", or "sync failed - tap" to retry) and the version.
+2x2 grid of tiles (Exposure, Pinhole, Sun / Golden, Settings), a location chip under the header, and a footer with the clock status ("Clock: synced 10:41 AM", "syncing...", or "sync failed - tap" to retry) and the version.
 
 ## Shared row UI (`src/rowpage.h`)
 Used by the Exposure, Pinhole and location editor screens.
@@ -45,5 +45,14 @@ Sun screen -> **Custom...**. Page 1: latitude and longitude (`-`/`+` nudge 0.01 
 ## Touch calibration
 Two crosshair taps on first boot (saved to flash). Hold a finger on the screen while booting to recalibrate.
 
+## Settings
+Home -> Settings. Two pages of rows (same row UI as Exposure):
+1. **CLOCK**: Time zone (`-`/`+`: US Eastern, Central, Mountain, Arizona, Pacific, Alaska, Hawaii, UTC; saved to flash), Sync clock now (tap the middle of the row), Clock status. The top panel shows the current time, date and zone.
+2. **WIFI**: three network slots; tap a slot to edit. The name is typed first, then the password (the old password is kept if you retype the same name). An empty name + OK clears the slot. Saving a network starts a sync straight away.
+
+On-screen keyboard: 8 x 5 keys (about 27 px wide, below the 40 px rule because this screen is only used for setup), three layers (lowercase, UPPERCASE, symbols; the layer button shows the layer you get next), plus Space, Del, OK and Cancel. All printable ASCII characters can be typed.
+
+Layout note: the Settings tile took the place of the dimmed "Light Meter" placeholder. When the light meter is built, move Settings to a small gear button in the Home header and give the tile back, or switch Home to a 2x3 grid.
+
 ## Phase 2 (not in this scope)
-Light meter (BH1750 / TSL2591), DS3231 RTC, GPS (NEO-6M), shot log to SD, shutter-head trigger. A Settings screen (WiFi entry on the device, timezone rules) is not built; WiFi credentials live in `src/wifi_secrets.h`.
+Light meter (BH1750 / TSL2591), DS3231 RTC, GPS (NEO-6M), shot log to SD, shutter-head trigger. 

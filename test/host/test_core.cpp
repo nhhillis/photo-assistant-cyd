@@ -7,6 +7,7 @@
 #include "countdown.h"
 #include "pinhole_state.h"
 #include "numentry.h"
+#include "textentry.h"
 #include "solar.h"
 
 using namespace pc;
@@ -308,6 +309,52 @@ int main() {
     memset(&p, 0xFF, sizeof p);
     pinholeSanitize(p);
     CHECK_NEAR("erased pinhole state computes a finite time", isfinite(pinholeCompute(p).exp.finalTime), 1, 0);
+  }
+
+  // --- Text entry / on-screen keyboard
+  {
+    TextEntry t;
+    teInit(t, "Home", 32);
+    CHECK_NEAR("init copies text", strcmp(t.text, "Home"), 0, 0);
+    teAppend(t, ' '); teAppend(t, 'W');
+    CHECK_NEAR("space and letters append", strcmp(t.text, "Home W"), 0, 0);
+    CHECK_NEAR("control chars rejected", teAppend(t, '\t'), 0, 0);
+    CHECK_NEAR("non-ASCII rejected", teAppend(t, (char)200), 0, 0);
+    teBackspace(t);
+    CHECK_NEAR("backspace", strcmp(t.text, "Home "), 0, 0);
+    teClear(t);
+    CHECK_NEAR("clear", t.len, 0, 0);
+    teInit(t, "", 5);
+    for (int i = 0; i < 10; i++) teAppend(t, 'x');
+    CHECK_NEAR("max length enforced", t.len, 5, 0);
+    teInit(t, "this is much longer than five", 5);
+    CHECK_NEAR("init respects max length", strcmp(t.text, "this "), 0, 0);
+    teInit(t, "", 200);
+    CHECK_NEAR("max length capped to the buffer (64)", t.maxLen, 64, 0);
+    for (int i = 0; i < 100; i++) teAppend(t, 'x');
+    CHECK_NEAR("buffer never overflows", t.len, 64, 0);
+
+    // Every printable ASCII character must be typeable: three layers + the space button.
+    bool seen[128] = {false};
+    seen[(int)' '] = true;
+    bool layersOk = true;
+    for (int l = 0; l < KB_LAYERS; l++) {
+      const char* k = kbLayer(l);
+      for (int i = 0; i < KB_KEYS; i++) {
+        unsigned char c = (unsigned char)k[i];
+        if (c < 33 || c > 126) layersOk = false; else seen[c] = true;
+      }
+    }
+    CHECK_NEAR("each layer has 40 printable keys", layersOk, 1, 0);
+    int missing = 0;
+    for (int c = 32; c <= 126; c++) if (!seen[c]) missing++;
+    CHECK_NEAR("keyboard can type all 95 printable characters", missing, 0, 0);
+    CHECK_NEAR("layer 0 starts with 'a'", kbLayer(0)[0], 'a', 0);
+    CHECK_NEAR("layer 1 starts with 'A'", kbLayer(1)[0], 'A', 0);
+
+    CHECK_NEAR("time zones: 8 listed", ZONE_COUNT, 8, 0);
+    CHECK_NEAR("default zone is US Central", strcmp(ZONES[DEFAULT_ZONE].name, "US Central"), 0, 0);
+    CHECK_NEAR("US Central rule", strcmp(ZONES[DEFAULT_ZONE].posix, "CST6CDT,M3.2.0,M11.1.0"), 0, 0);
   }
 
   // --- Countdown timer (times worked by hand)

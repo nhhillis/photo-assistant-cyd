@@ -12,10 +12,10 @@ ESP32 "Cheap Yellow Display" photography assistant for Howard: pinhole, general 
 
 | Part | State |
 |---|---|
-| `lib/PhotoCore/` | Done, 150+ host checks. Portable C++, no Arduino includes: films, exposure, exposure_state, pinhole_state, countdown, numentry, solar. |
-| UI (`src/`) | Built and running on the ILI9341 CYD in portrait: Home, Exposure (4 pages incl. film tuning), Pinhole, countdown timer, Sun, custom location editor + keypad, touch calibration. |
-| Clock | WiFi + NTP at boot (`src/clock_sync.h`), credentials in gitignored `src/wifi_secrets.h` (template: `wifi_secrets.example.h`). |
-| Phase 2 | Not started: light meter, GPS, RTC, shot log, shutter trigger. A Settings screen (WiFi entry on the device) is not built. |
+| `lib/PhotoCore/` | Done, 165 host checks. Portable C++, no Arduino includes: films, exposure, exposure_state, pinhole_state, countdown, numentry, textentry, solar. |
+| UI (`src/`) | Built and running on the ILI9341 CYD in portrait: Home, Exposure (4 pages incl. film tuning), Pinhole, countdown timer, Sun, custom location editor + keypad, touch calibration, Settings (time zone, sync, 3 WiFi slots) with an on-screen keyboard. |
+| Clock | WiFi + NTP at boot (`src/clock_sync.h`). Networks are entered in Settings (flash) and tried first; the gitignored `src/wifi_secrets.h` (template: `wifi_secrets.example.h`) is an optional fallback. |
+| Phase 2 | Not started: light meter, GPS, RTC, shot log, shutter trigger.  |
 
 ## Rules
 
@@ -47,4 +47,6 @@ ESP32 "Cheap Yellow Display" photography assistant for Howard: pinhole, general 
 
 ## Next task
 
-Not decided. Candidates: a Settings screen (enter WiFi on the device, timezone rules), editing the film list, saving the Exposure/Pinhole state across reboots, or starting phase 2 (light meter first).
+Not decided. Candidates: starting phase 2 (light meter first), or editing the film list (Howard will ask if he starts shooting new film; until then leave the list alone).
+
+When the light meter is added: the Home Settings tile took the light meter's placeholder slot. Move Settings to a small gear in the Home header (or go to a 2x3 grid) and restore the tile. The Settings keyboard keys are about 27 px wide (below the 40 px rule) on purpose; it is a setup-only screen.

@@ -6,9 +6,9 @@ A pocket photography assistant for an ESP32 "Cheap Yellow Display" (ESP32-2432S0
 
 | Part | State |
 |---|---|
-| `lib/PhotoCore` (films, exposure stack, pinhole, countdown, keypad entry, sun) | Done, 150+ host checks pass |
+| `lib/PhotoCore` (films, exposure stack, pinhole, countdown, keypad/text entry, sun) | Done, 165 host checks pass |
 | Home, Exposure, Pinhole, countdown timer, Sun, custom location | Built and flashed to the ILI9341 CYD |
-| Touch calibration, WiFi + NTP clock, per-film tuning | Done |
+| Touch calibration, WiFi + NTP clock, per-film tuning, saved settings, Settings screen | Done |
 | Phase 2 (light meter, GPS, RTC, shot log, shutter trigger) | Not started |
 
 ## Run the tests (no hardware needed)
@@ -38,15 +38,17 @@ Use your own COM port. On first boot the board asks you to tap two crosshairs to
 
 ## WiFi clock setup
 
-The clock syncs over WiFi with NTP at boot, then WiFi switches off. Copy `src/wifi_secrets.example.h` to `src/wifi_secrets.h` and enter your networks (home first, phone hotspot second). `wifi_secrets.h` is gitignored. Without it the Home footer says "no WiFi set up" and the Sun screen uses the firmware build date.
+The clock syncs over WiFi with NTP at boot, then WiFi switches off. Enter your networks on the device: **Home -> Settings -> page 2 (WiFi)**, tap a slot, and type the name and password on the on-screen keyboard (three slots; the board tries them in order). Settings also has the time zone (US zones and UTC) and a "sync clock now" button.
+
+Optional fallback: copy `src/wifi_secrets.example.h` to `src/wifi_secrets.h` and fill it in (gitignored); those networks are tried after the saved ones. Without any network the Home footer says "no WiFi set up" and the Sun screen uses the firmware build date.
 
 ## Layout
 
 ```
 lib/PhotoCore/   portable C++ (no Arduino): films, exposure, exposure_state, pinhole_state,
-                 countdown, numentry, solar
+                 countdown, numentry, textentry, solar
 src/main.cpp     setup, touch calibration, Home screen, main loop
-src/*_screen.h   screens (Exposure, Pinhole, Countdown, Sun, location editor + keypad)
+src/*_screen.h   screens (Exposure, Pinhole, Countdown, Sun, location editor + keypad, Settings + keyboard)
 src/rowpage.h    shared "pages of big +/- rows" UI
 src/clock_sync.h WiFi + NTP state machine
 test/host/       unit tests run on your PC
