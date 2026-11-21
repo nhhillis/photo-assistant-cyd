@@ -8,8 +8,11 @@ const float SHUTTER_S[] = {1.f / 1000, 1.f / 500, 1.f / 250, 1.f / 125, 1.f / 60
                            1.f / 4,    1.f / 2,   1.f,       2.f,       4.f,      8.f,      15.f,     30.f,
                            60.f,       120.f,     240.f,     480.f,     900.f,    1800.f};
 const uint8_t SHUTTER_COUNT = sizeof(SHUTTER_S) / sizeof(SHUTTER_S[0]);
-const float APERTURES[] = {1.f, 1.4f, 2.f, 2.8f, 4.f, 5.6f, 8.f, 11.f, 16.f, 22.f, 32.f, 45.f, 64.f, 90.f, 128.f, 180.f, 256.f};
+const float APERTURES[] = {1.f,  1.4f, 2.f,  2.8f,  4.f,   5.6f,  8.f,   11.f,  16.f,  22.f,  32.f,
+                                 45.f, 64.f, 90.f, 128.f, 135.f, 137.f, 167.f, 180.f, 215.f, 256.f};
 const uint8_t APERTURE_COUNT = sizeof(APERTURES) / sizeof(APERTURES[0]);
+const float FOCALS[] = {18.f, 35.f, 50.f, 85.f};
+const uint8_t FOCAL_COUNT = sizeof(FOCALS) / sizeof(FOCALS[0]);
 const uint16_t ISOS[] = {6, 12, 25, 50, 64, 80, 100, 125, 160, 200, 250, 320, 400, 800, 1600, 3200};
 const uint8_t ISO_COUNT = sizeof(ISOS) / sizeof(ISOS[0]);
 
@@ -31,7 +34,7 @@ void exposureInit(ExposureState& s) {
   s.apIdx = indexOfNearest(APERTURES, APERTURE_COUNT, 16.f);
   for (uint8_t i = 0; i < ISO_COUNT; i++)
     if (ISOS[i] == 100) s.meterIsoIdx = i;
-  s.focalMm = 150.f;  // placeholder lens; the UI sets it when bellows is used
+  s.focalMm = 50.f;  // one of FOCALS; the UI changes it for bellows compensation
   for (uint8_t i = 0; i < FILM_COUNT; i++)
     if (strcmp(FILMS[i].id, "fp4") == 0) s.film = i;
   s.filmIso = FILMS[s.film].boxIso;
@@ -79,9 +82,26 @@ void stepFilter(ExposureState& s, int dir) {
   else if (dir < 0 && s.filterThirds > 0) s.filterThirds--;
 }
 void stepBellows(ExposureState& s, int dir) {
-  s.bellowsMm += dir * 5.f;
-  if (s.bellowsMm < 0.f) s.bellowsMm = 0.f;
-  if (s.bellowsMm > 1000.f) s.bellowsMm = 1000.f;
+  if (dir > 0) {
+    // from "off" (or anything at/below the focal length) jump straight past the focal length,
+    // where compensation actually starts, instead of making the user tap through it
+    s.bellowsMm = s.bellowsMm <= s.focalMm ? s.focalMm + 10.f : s.bellowsMm + 10.f;
+  } else if (dir < 0) {
+    s.bellowsMm -= 10.f;
+    if (s.bellowsMm <= s.focalMm) s.bellowsMm = 0.f;
+  }
+  if (s.bellowsMm > 1500.f) s.bellowsMm = 1500.f;
+}
+void stepFocal(ExposureState& s, int dir) {
+  uint8_t idx = indexOfNearest(FOCALS, FOCAL_COUNT, s.focalMm);
+  step(idx, FOCAL_COUNT, dir);
+  s.focalMm = FOCALS[idx];
+}
+void stepShootAperture(ExposureState& s, int dir) {
+  float cur = s.shootAperture > 0.f ? s.shootAperture : APERTURES[s.apIdx];
+  uint8_t idx = indexOfNearest(APERTURES, APERTURE_COUNT, cur);
+  step(idx, APERTURE_COUNT, dir);
+  s.shootAperture = APERTURES[idx] == APERTURES[s.apIdx] ? 0.f : APERTURES[idx];  // 0 = same as metered
 }
 void stepFilm(ExposureState& s, int dir) {
   int n = (int)s.film + dir;

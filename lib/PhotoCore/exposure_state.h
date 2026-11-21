@@ -9,8 +9,10 @@ namespace pc {
 // Stepping lists (full-stop shutter speeds, full-stop apertures, common ISOs).
 extern const float SHUTTER_S[];
 extern const uint8_t SHUTTER_COUNT;
-extern const float APERTURES[];
+extern const float APERTURES[];  // full stops plus the f-numbers actually used (135, 137, 167, 215); used for metered and shoot aperture
 extern const uint8_t APERTURE_COUNT;
+extern const float FOCALS[];  // lens focal lengths in mm: 18, 35, 50, 85
+extern const uint8_t FOCAL_COUNT;
 extern const uint16_t ISOS[];
 extern const uint8_t ISO_COUNT;
 
@@ -48,7 +50,9 @@ void stepAperture(ExposureState& s, int dir);
 void stepMeterIso(ExposureState& s, int dir);
 void stepFilmIso(ExposureState& s, int dir);
 void stepFilter(ExposureState& s, int dir);   // 1/3 stop
-void stepBellows(ExposureState& s, int dir);  // 5 mm
+void stepBellows(ExposureState& s, int dir);  // 10 mm; first + jumps past the focal length, - below it returns to off
+void stepFocal(ExposureState& s, int dir);    // steps through FOCALS
+void stepShootAperture(ExposureState& s, int dir);  // full stops; landing on the metered f-number resets to 0 (same)
 void stepFilm(ExposureState& s, int dir);
 
 }  // namespace pc

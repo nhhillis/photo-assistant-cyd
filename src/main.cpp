@@ -8,7 +8,9 @@
 #include <Preferences.h>
 #include <time.h>
 #include "exposure.h"
+#include "exposure_state.h"
 #include "solar.h"
+#include <string.h>
 
 // CYD touch is on its own SPI bus
 #define T_CS 33
@@ -210,6 +212,8 @@ void drawSun() {
   tft.drawString(String("Blue end ") + d, 10, 180, 4);
 }
 
+#include "exposure_screen.h"
+
 void drawPlaceholder(const char* title) {
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
@@ -222,7 +226,7 @@ void go(Screen s) {
   screen = s;
   if (s == HOME) drawHome();
   else if (s == SUN) drawSun();
-  else if (s == EXPOSURE) drawPlaceholder("Exposure");
+  else if (s == EXPOSURE) drawExposure();
   else drawPlaceholder("Pinhole");
 }
 
@@ -235,6 +239,7 @@ void setup() {
   SPI.begin(T_CLK, T_MISO, T_MOSI, T_CS);  // touch owns the default (VSPI) bus; display uses HSPI
   ts.begin();
   ts.setRotation(0);
+  pc::exposureInit(ex);
   loadCalibration();
   delay(100);
   if (!cal.ok || ts.touched()) runCalibration();
@@ -256,6 +261,8 @@ void loop() {
           delay(120);
           go(t.target);
         }
+    } else if (screen == EXPOSURE) {
+      if (exposureTap(x, y)) go(HOME);
     } else {
       go(HOME);
     }

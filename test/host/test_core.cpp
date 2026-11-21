@@ -124,6 +124,36 @@ int main() {
     CHECK_NEAR("time clamps at bottom", e.timeIdx, 0, 0);
     stepBellows(e, -1);
     CHECK_NEAR("bellows >= 0", e.bellowsMm, 0, 0);
+    exposureInit(e); stepBellows(e, +1);
+    CHECK_NEAR("bellows first + jumps past focal (50 -> 60)", e.bellowsMm, 60, 0);
+    stepBellows(e, -1);
+    CHECK_NEAR("bellows - back to off", e.bellowsMm, 0, 0);
+    exposureInit(e); stepShootAperture(e, +1);
+    CHECK_NEAR("shoot aperture f/16 +1 stop = f/22", e.shootAperture, 22, 0);
+    stepShootAperture(e, -1);
+    CHECK_NEAR("shoot aperture back to metered = 0 (same)", e.shootAperture, 0, 0);
+    exposureInit(e); e.shootAperture = 167; stepShootAperture(e, -1);
+    CHECK_NEAR("shoot aperture 167 - 1 step = 137", e.shootAperture, 137, 0);
+    stepShootAperture(e, +1); stepShootAperture(e, +1); stepShootAperture(e, +1);
+    CHECK_NEAR("shoot aperture 167 + 2 steps = 215 (via 180)", e.shootAperture, 215, 0);
+    exposureInit(e);
+    bool seen[4] = {false, false, false, false};
+    for (int i = 0; i < 30; i++) {
+      stepShootAperture(e, +1);
+      if (e.shootAperture == 135) seen[0] = true;
+      if (e.shootAperture == 137) seen[1] = true;
+      if (e.shootAperture == 167) seen[2] = true;
+      if (e.shootAperture == 215) seen[3] = true;
+    }
+    CHECK_NEAR("shoot list reaches 135, 137, 167, 215", seen[0] && seen[1] && seen[2] && seen[3], 1, 0);
+    exposureInit(e); stepFocal(e, +1);
+    CHECK_NEAR("focal 50 + 1 = 85", e.focalMm, 85, 0);
+    stepFocal(e, +1);
+    CHECK_NEAR("focal clamps at 85", e.focalMm, 85, 0);
+    for (int i = 0; i < 10; i++) stepFocal(e, -1);
+    CHECK_NEAR("focal bottoms at 18", e.focalMm, 18, 0);
+    stepFocal(e, +1);
+    CHECK_NEAR("focal 18 + 1 = 35", e.focalMm, 35, 0);
     exposureInit(e); stepTime(e, +1);
     CHECK_NEAR("step time up from 1/60 = 1/30", SHUTTER_S[e.timeIdx], 1.0 / 30, 1e-6);
     exposureInit(e); stepFilm(e, -1); stepFilm(e, +1);
