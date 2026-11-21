@@ -5,6 +5,7 @@
 #include <SPI.h>
 #include <TFT_eSPI.h>
 #include <XPT2046_Touchscreen.h>
+#include <Preferences.h>
 #include <time.h>
 #include "exposure.h"
 #include "solar.h"
@@ -137,6 +138,59 @@ void drawHome() {
   tft.drawRightString("v0.1", 232, 306, 1);
 }
 
+// ---- Touch calibration: two corner taps, saved to flash (hold a finger on the screen at boot to redo) ----
+struct Cal { int x1, y1, x2, y2; bool ok; };  // raw values at screen points (CAL_A) and (CAL_B)
+Cal cal = {0, 0, 0, 0, false};
+Preferences prefs;
+const int CAL_AX = 20, CAL_AY = 20, CAL_BX = 220, CAL_BY = 300;
+
+void drawCross(int x, int y) {
+  tft.drawFastHLine(x - 12, y, 25, TFT_WHITE);
+  tft.drawFastVLine(x, y - 12, 25, TFT_WHITE);
+  tft.drawCircle(x, y, 6, TFT_RED);
+}
+
+void tapRaw(int sx, int sy, int& rx, int& ry) {
+  tft.fillScreen(C_BG);
+  tft.setTextColor(C_TEXT, C_BG);
+  tft.drawCentreString("Touch calibration", 120, 130, 2);
+  tft.drawCentreString("Tap the crosshair", 120, 154, 2);
+  drawCross(sx, sy);
+  while (ts.touched()) delay(10);  // wait for release
+  delay(150);
+  while (!ts.touched()) delay(10);
+  long ax = 0, ay = 0; int n = 0;
+  uint32_t t0 = millis();
+  while (ts.touched() && millis() - t0 < 400) {  // average while the finger is down
+    TS_Point p = ts.getPoint();
+    ax += p.x; ay += p.y; n++;
+    delay(10);
+  }
+  rx = n ? ax / n : 0; ry = n ? ay / n : 0;
+  Serial.printf("cal tap (%d,%d) raw (%d,%d) n=%d\n", sx, sy, rx, ry, n);
+}
+
+void runCalibration() {
+  tapRaw(CAL_AX, CAL_AY, cal.x1, cal.y1);
+  tapRaw(CAL_BX, CAL_BY, cal.x2, cal.y2);
+  cal.ok = cal.x1 != cal.x2 && cal.y1 != cal.y2;
+  if (cal.ok) {
+    prefs.putBytes("cal", &cal, sizeof(cal));
+    Serial.printf("cal saved: %d %d %d %d\n", cal.x1, cal.y1, cal.x2, cal.y2);
+  }
+}
+
+void loadCalibration() {
+  prefs.begin("touch", false);
+  if (prefs.getBytesLength("cal") != sizeof(cal)) return;
+  prefs.getBytes("cal", &cal, sizeof(cal));
+}
+
+void toScreen(int rx, int ry, int& x, int& y) {
+  x = CAL_AX + (float)(rx - cal.x1) * (CAL_BX - CAL_AX) / (cal.x2 - cal.x1);
+  y = CAL_AY + (float)(ry - cal.y1) * (CAL_BY - CAL_AY) / (cal.y2 - cal.y1);
+}
+
 void drawSun() {
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
@@ -181,6 +235,9 @@ void setup() {
   SPI.begin(T_CLK, T_MISO, T_MOSI, T_CS);  // touch owns the default (VSPI) bus; display uses HSPI
   ts.begin();
   ts.setRotation(0);
+  loadCalibration();
+  delay(100);
+  if (!cal.ok || ts.touched()) runCalibration();
   Serial.printf("Films loaded: %u\n", pc::FILM_COUNT);
   go(HOME);
 }
@@ -190,9 +247,8 @@ void loop() {
   if (ts.tirqTouched() && ts.touched() && millis() - lastTap > 250) {
     lastTap = millis();
     TS_Point p = ts.getPoint();
-    // raw touch -> screen coords: calibrate these ranges for your unit
-    int x = map(p.x, 200, 3700, 0, 240);
-    int y = map(p.y, 240, 3800, 0, 320);
+    int x, y;
+    toScreen(p.x, p.y, x, y);
     if (screen == HOME) {
       for (auto& t : tiles)
         if (t.enabled && x >= t.x && x < t.x + t.w && y >= t.y && y < t.y + t.h) {
