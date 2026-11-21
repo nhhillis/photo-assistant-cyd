@@ -6,6 +6,7 @@
 #include "exposure_state.h"
 #include "countdown.h"
 #include "pinhole_state.h"
+#include "numentry.h"
 #include "solar.h"
 
 using namespace pc;
@@ -194,6 +195,47 @@ int main() {
     CHECK_NEAR("hole clamps at 0.10 mm", ph.holeMm, 0.10, 1e-5);
     for (int i = 0; i < 100; i++) pinholeStepFocal(ph, +1);
     CHECK_NEAR("focal clamps at 300 mm", ph.focalMm, 300, 0);
+  }
+
+  // --- Numeric keypad entry (typing coordinates)
+  {
+    NumEntry n;
+    float v = 0;
+    auto type = [&](const char* keys) { for (const char* k = keys; *k; k++) neKey(n, *k); };
+    neInit(n, 35.6528f, -90, 90);
+    CHECK_NEAR("init shows 35.6528", strcmp(n.text, "35.6528"), 0, 0);
+    neInit(n, -97.0f, -180, 180);
+    CHECK_NEAR("init trims zeros: -97", strcmp(n.text, "-97"), 0, 0);
+    neInit(n, 0.f, -90, 90);
+    type("5");
+    CHECK_NEAR("leading 0 replaced: 0 then 5 = 5", strcmp(n.text, "5"), 0, 0);
+    neInit(n, 0.f, -90, 90); n.len = 0; n.text[0] = 0;
+    type("35.6528");
+    CHECK_NEAR("typed 35.6528 valid", neValue(n, v) && fabs(v - 35.6528) < 1e-4, 1, 0);
+    CHECK_NEAR("second '.' ignored", neKey(n, '.'), 0, 0);
+    n.len = 0; n.text[0] = 0;
+    type("-97.4781");
+    CHECK_NEAR("typed -97.4781 (lat range 90): out of range", neValue(n, v), 0, 0);
+    NumEntry lon; neInit(lon, 0.f, -180, 180); lon.len = 0; lon.text[0] = 0;
+    for (const char* k = "-97.4781"; *k; k++) neKey(lon, *k);
+    CHECK_NEAR("typed -97.4781 valid for longitude", neValue(lon, v) && fabs(v + 97.4781) < 1e-4, 1, 0);
+    neKey(lon, '-');
+    CHECK_NEAR("'-' toggles sign off", strcmp(lon.text, "97.4781"), 0, 0);
+    neKey(lon, '-');
+    CHECK_NEAR("'-' toggles sign on", strcmp(lon.text, "-97.4781"), 0, 0);
+    neBackspace(lon); neBackspace(lon);
+    CHECK_NEAR("backspace x2", strcmp(lon.text, "-97.47"), 0, 0);
+    NumEntry e2; neInit(e2, 0.f, -90, 90); e2.len = 0; e2.text[0] = 0;
+    CHECK_NEAR("empty is not a value", neValue(e2, v), 0, 0);
+    neKey(e2, '-');
+    CHECK_NEAR("lone '-' is not a value", neValue(e2, v), 0, 0);
+    neKey(e2, '.');
+    CHECK_NEAR("'-.' becomes '-0.'", strcmp(e2.text, "-0."), 0, 0);
+    neKey(e2, '5');
+    CHECK_NEAR("-0.5 valid", neValue(e2, v) && fabs(v + 0.5) < 1e-6, 1, 0);
+    e2.len = 0; e2.text[0] = 0;
+    neKey(e2, '1'); neKey(e2, '2'); neKey(e2, '.');
+    CHECK_NEAR("decimals capped at 5", (neKey(e2, '1'), neKey(e2, '1'), neKey(e2, '1'), neKey(e2, '1'), neKey(e2, '1'), neKey(e2, '1')), 0, 0);
   }
 
   // --- Countdown timer (times worked by hand)

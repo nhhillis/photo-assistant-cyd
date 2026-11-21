@@ -38,7 +38,7 @@ const Row exRows[] = {
     {"LENS FOCAL LENGTH", 2, false, [](int d) { pc::stepFocal(ex, d); }, vFocal},
 };
 const char* const exPageNames[] = {"SETUP", "METER", "COMPENSATION"};
-RowPage exPage = {exRows, sizeof(exRows) / sizeof(exRows[0]), 3, exPageNames, 0};
+RowPage exPage = {exRows, sizeof(exRows) / sizeof(exRows[0]), 3, exPageNames, 0, 0};
 
 void drawExPanel() {
   const uint16_t green = RGB(60, 230, 110), warn = RGB(255, 90, 70);

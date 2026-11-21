@@ -17,9 +17,10 @@ struct RowPage {
   int pages;
   const char* const* pageNames;
   uint8_t page;
+  int lastRow;  // row whose centre was last tapped (RP_CENTER)
 };
 
-enum RpAction { RP_NONE, RP_HOME, RP_PANEL, RP_CHANGED, RP_PAGE };
+enum RpAction { RP_NONE, RP_HOME, RP_PANEL, RP_CHANGED, RP_PAGE, RP_CENTER };
 
 // 60 px wide x 50 px tall buttons with 6 px gaps; hit zones split in the middle of the gap.
 const int RP_ROW_H = 50, RP_ROW_PITCH = 56, RP_BTN_W = 60, RP_ROWS_Y = 112, RP_PANEL_H = 110, RP_BTN_Y = 280;
@@ -87,7 +88,10 @@ RpAction rpTap(RowPage& rp, int x, int y) {
     int ry = rpRowY(rp, i);
     if (y < ry || y >= ry + RP_ROW_H) continue;
     int dir = x < RP_BTN_W + 3 ? -1 : (x >= 240 - RP_BTN_W - 3 ? +1 : 0);
-    if (dir == 0) return RP_NONE;
+    if (dir == 0) {
+      rp.lastRow = i;
+      return RP_CENTER;
+    }
     rp.rows[i].step(dir);
     rpDrawRows(rp);  // a change can affect other rows (film resets film speed, preset sets focal and hole)
     return RP_CHANGED;

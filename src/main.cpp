@@ -13,6 +13,7 @@
 #include <string.h>
 #include "countdown.h"
 #include "pinhole_state.h"
+#include "numentry.h"
 #include "clock_sync.h"
 
 // CYD touch is on its own SPI bus
@@ -25,9 +26,10 @@
 TFT_eSPI tft;
 XPT2046_Touchscreen ts(T_CS, T_IRQ);
 
-enum Screen { HOME, EXPOSURE, PINHOLE, SUN, COUNTDOWN };
+enum Screen { HOME, EXPOSURE, PINHOLE, SUN, COUNTDOWN, LOC_EDIT, KEYPAD };
 Screen screen = HOME;
-uint8_t locIdx = 0;  // index into PRESET_LOCATIONS (custom location: TODO, persist with Preferences)
+uint8_t locIdx = 0;  // 0..PRESET_COUNT-1 = presets, PRESET_COUNT = saved custom location (location_state.h)
+#include "location_state.h"
 
 // ---- Home screen look: dark navy, accent-colored tiles with drawn icons ----
 enum Icon { ICON_APERTURE, ICON_PINHOLE, ICON_SUN, ICON_METER };
@@ -141,7 +143,7 @@ void drawHome() {
   tft.drawString("PHOTO ASSISTANT", 40, 6, 2);
   tft.setTextColor(C_DIM, C_BG);
   tft.drawString("pinhole / large format", 40, 24, 1);
-  const char* loc = pc::PRESET_LOCATIONS[locIdx].name;
+  const char* loc = currentLoc().name;
   tft.fillRoundRect(8, 44, 224, 24, 12, C_TILE);
   tft.setTextColor(C_TEXT, C_TILE);
   tft.drawCentreString(loc, 120, 48, 2);
@@ -208,6 +210,7 @@ void toScreen(int rx, int ry, int& x, int& y) {
 #include "pinhole_screen.h"
 #include "countdown_screen.h"
 #include "sun_screen.h"
+#include "location_screens.h"
 
 void drawPlaceholder(const char* title) {
   tft.fillScreen(TFT_BLACK);
@@ -238,6 +241,7 @@ void setup() {
   pc::exposureInit(ex);
   pc::pinholeInit(ph);
   loadCalibration();
+  loadCustomLoc();
   delay(100);
   if (!cal.ok || ts.touched()) runCalibration();
   Serial.printf("Films loaded: %u\n", pc::FILM_COUNT);
@@ -280,6 +284,13 @@ void loop() {
       else if (act == 2) startCountdownScreen(pc::pinholeCompute(ph).exp.finalTime, pc::FILMS[ph.ex.film].name, PINHOLE);
     } else if (screen == SUN) {
       if (sunTap(x, y)) go(HOME);
+    } else if (screen == LOC_EDIT) {
+      if (locEditTap(x, y)) go(SUN);
+    } else if (screen == KEYPAD) {
+      if (keypadTap(x, y)) {
+        screen = LOC_EDIT;
+        drawLocEdit();
+      }
     } else {
       go(HOME);
     }

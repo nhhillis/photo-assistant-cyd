@@ -35,7 +35,7 @@ const Row phRows[] = {
     {"FILTER / ND", 2, false, [](int d) { pc::stepFilter(ph.ex, d); }, pvFilter},
 };
 const char* const phPageNames[] = {"PINHOLE", "FILM + METER", "ISO + FILTER"};
-RowPage phPage = {phRows, sizeof(phRows) / sizeof(phRows[0]), 3, phPageNames, 0};
+RowPage phPage = {phRows, sizeof(phRows) / sizeof(phRows[0]), 3, phPageNames, 0, 0};
 
 void drawPhPanel() {
   const uint16_t green = RGB(60, 230, 110), warn = RGB(255, 90, 70);

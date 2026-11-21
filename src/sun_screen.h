@@ -3,6 +3,7 @@
 #pragma once
 
 static const int SUN_BTN_Y = 280;
+void startLocEdit();  // location_screens.h
 
 void drawSun() {
   const uint16_t amber = RGB(255, 170, 40), blue = RGB(110, 150, 255), btn = RGB(40, 46, 66);
@@ -15,7 +16,7 @@ void drawSun() {
   tft.drawCentreString("<", 26, 9, 4);
   tft.drawCentreString(">", 214, 9, 4);
   tft.setTextColor(C_TEXT, C_TILE);
-  const pc::Location& loc = pc::PRESET_LOCATIONS[locIdx];
+  const pc::Location& loc = currentLoc();
   tft.drawCentreString(loc.name, 120, tft.textWidth(loc.name, 4) <= 116 ? 10 : 14, tft.textWidth(loc.name, 4) <= 116 ? 4 : 2);
 
   int y, m, d;
@@ -52,16 +53,22 @@ void drawSun() {
     tft.drawRightString(t, 232, ry + 4, 4);
     ry += 34;
   }
-  tft.fillRoundRect(0, SUN_BTN_Y, 240, 40, 10, btn);
+  tft.fillRoundRect(0, SUN_BTN_Y, 116, 40, 10, btn);
+  tft.fillRoundRect(124, SUN_BTN_Y, 116, 40, 10, btn);
   tft.setTextColor(C_TEXT, btn);
-  tft.drawCentreString("Home", 120, SUN_BTN_Y + 12, 2);
+  tft.drawCentreString("Home", 58, SUN_BTN_Y + 12, 2);
+  tft.drawCentreString("Custom...", 182, SUN_BTN_Y + 12, 2);
 }
 
 // Returns true when the user leaves the screen.
 bool sunTap(int x, int y) {
-  if (y >= SUN_BTN_Y) return true;
+  if (y >= SUN_BTN_Y) {
+    if (x < 120) return true;
+    startLocEdit();
+    return false;
+  }
   if (y < 44) {
-    int n = pc::PRESET_COUNT;
+    int n = locCount();
     if (x < 56) locIdx = (locIdx + n - 1) % n;
     else if (x >= 184) locIdx = (locIdx + 1) % n;
     else return false;
