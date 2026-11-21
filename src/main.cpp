@@ -213,7 +213,10 @@ void drawSun() {
   tft.drawString(String("Blue end ") + d, 10, 180, 4);
 }
 
+#include "pinhole_state.h"
+#include "rowpage.h"
 #include "exposure_screen.h"
+#include "pinhole_screen.h"
 #include "countdown_screen.h"
 
 void drawPlaceholder(const char* title) {
@@ -229,6 +232,7 @@ void go(Screen s) {
   if (s == HOME) drawHome();
   else if (s == SUN) drawSun();
   else if (s == EXPOSURE) drawExposure();
+  else if (s == PINHOLE) drawPinhole();
   else drawPlaceholder("Pinhole");
 }
 
@@ -242,6 +246,7 @@ void setup() {
   ts.begin();
   ts.setRotation(0);
   pc::exposureInit(ex);
+  pc::pinholeInit(ph);
   loadCalibration();
   delay(100);
   if (!cal.ok || ts.touched()) runCalibration();
@@ -267,9 +272,13 @@ void loop() {
     } else if (screen == EXPOSURE) {
       int act = exposureTap(x, y);
       if (act == 1) go(HOME);
-      else if (act == 2) startCountdownScreen();
+      else if (act == 2) startCountdownScreen(pc::exposureCompute(ex).finalTime, pc::FILMS[ex.film].name, EXPOSURE);
     } else if (screen == COUNTDOWN) {
-      if (countdownTap(x, y)) go(EXPOSURE);
+      if (countdownTap(x, y)) go(cdReturn);
+    } else if (screen == PINHOLE) {
+      int act = pinholeTap(x, y);
+      if (act == 1) go(HOME);
+      else if (act == 2) startCountdownScreen(pc::pinholeCompute(ph).exp.finalTime, pc::FILMS[ph.ex.film].name, PINHOLE);
     } else {
       go(HOME);
     }

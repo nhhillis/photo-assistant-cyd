@@ -8,6 +8,8 @@ char cdLastText[16] = "";
 int cdLastSize = 0;
 
 const int CD_BTN_Y = 240, CD_BTN_H = 72;
+Screen cdReturn = EXPOSURE;  // where BACK goes
+char cdLabel[32] = "";      // film name shown under the progress bar
 
 static uint16_t cdDigitColor() {
   if (cd.state == pc::Countdown::Done) return ((millis() - cdDoneAt) / 250) % 2 ? RGB(255, 60, 50) : TFT_WHITE;
@@ -82,7 +84,7 @@ void cdDrawAll() {
   pc::formatTime(cd.totalMs / 1000.f, tot, sizeof tot);
   tft.setTextColor(C_DIM, C_BG);
   tft.drawCentreString("EXPOSURE TIMER", 120, 6, 2);
-  snprintf(line, sizeof line, "%s   total %s", pc::FILMS[ex.film].name, tot);
+  snprintf(line, sizeof line, "%s   total %s", cdLabel, tot);
   tft.drawCentreString(line, 120, 212, 2);
   cdLastText[0] = 0;
   cdDrawStatus();
@@ -90,10 +92,11 @@ void cdDrawAll() {
   cdDrawButtons();
 }
 
-// Called when the user taps the final time on the Exposure screen.
-void startCountdownScreen() {
-  pc::ExposureResult r = pc::exposureCompute(ex);
-  pc::cdSet(cd, r.finalTime);
+// Called when the user taps the final time on the Exposure or Pinhole screen.
+void startCountdownScreen(float seconds, const char* filmName, Screen returnTo) {
+  pc::cdSet(cd, seconds);
+  snprintf(cdLabel, sizeof cdLabel, "%s", filmName);
+  cdReturn = returnTo;
   screen = COUNTDOWN;
   digitalWrite(TFT_BL, HIGH);
   cdDrawAll();

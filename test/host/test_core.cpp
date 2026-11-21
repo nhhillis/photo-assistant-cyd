@@ -5,6 +5,7 @@
 #include "exposure.h"
 #include "exposure_state.h"
 #include "countdown.h"
+#include "pinhole_state.h"
 #include "solar.h"
 
 using namespace pc;
@@ -163,6 +164,36 @@ int main() {
     CHECK_NEAR("film steps wrap", e.film, FILM_COUNT - 1, 0);
     exposureInit(e); for (int i = 0; i < 100; i++) stepFilter(e, +1);
     CHECK_NEAR("filter clamps at 20 stops", e.filterThirds, 60, 0);
+  }
+
+  // --- Pinhole state (hand-worked: 1/60 s at f/16, ISO 100 meter, FP4+ at 125, shot at f/166.67)
+  {
+    PinholeState ph;
+    pinholeInit(ph);
+    PinholeResult pr = pinholeCompute(ph);
+    CHECK_NEAR("pinhole preset 0: f/166.7", pr.fNumber, 166.7, 0.1);
+    CHECK_NEAR("pinhole preset 0: optimal 0.315 mm", pr.optimalHoleMm, 0.315, 0.005);
+    CHECK_NEAR("pinhole preset 0: FOV 58.5 deg", pr.fovDeg, 58.5, 0.3);
+    // base = 1/60 * (166.67/16)^2 * 100/125 = 1.4468 s; FP4+ P=1.26 -> 1.4468^1.26 = 1.592 s
+    CHECK_NEAR("pinhole preset 0: base time 1.4468 s", pr.exp.baseTime, 1.4468, 0.005);
+    CHECK_NEAR("pinhole preset 0: FP4+ final 1.592 s", pr.exp.finalTime, 1.592, 0.01);
+    CHECK_NEAR("pinhole does not edit the stored exposure state", ph.ex.shootAperture, 0, 0);
+    pinholeStepPreset(ph, +1);
+    pr = pinholeCompute(ph);
+    CHECK_NEAR("pinhole preset 1: f/134.6", pr.fNumber, 134.6, 0.1);
+    CHECK_NEAR("pinhole preset 1: optimal 0.264 mm", pr.optimalHoleMm, 0.264, 0.005);
+    CHECK_NEAR("pinhole preset 1: FOV 77.3 deg", pr.fovDeg, 77.3, 0.3);
+    pinholeStepPreset(ph, +1);
+    CHECK_NEAR("pinhole presets wrap", ph.preset, 0, 0);
+    pinholeStepHole(ph, +1);
+    CHECK_NEAR("pinhole hole +0.01 mm = 0.31", ph.holeMm, 0.31, 1e-5);
+    CHECK_NEAR("edited hole no longer matches preset", pinholeMatchesPreset(ph), 0, 0);
+    pinholeStepHole(ph, -1);
+    CHECK_NEAR("hole back to 0.30 matches preset again", pinholeMatchesPreset(ph), 1, 0);
+    for (int i = 0; i < 200; i++) pinholeStepHole(ph, -1);
+    CHECK_NEAR("hole clamps at 0.10 mm", ph.holeMm, 0.10, 1e-5);
+    for (int i = 0; i < 100; i++) pinholeStepFocal(ph, +1);
+    CHECK_NEAR("focal clamps at 300 mm", ph.focalMm, 300, 0);
   }
 
   // --- Countdown timer (times worked by hand)
