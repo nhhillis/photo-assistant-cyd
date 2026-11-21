@@ -98,6 +98,29 @@ ExposureResult exposureCompute(const ExposureState& s) {
   return r;
 }
 
+bool exposureSanitize(ExposureState& s) {
+  bool ok = true;
+  if (s.film >= FILM_COUNT) {  // unknown film: start over
+    exposureInit(s);
+    return false;
+  }
+  if (s.timeIdx >= SHUTTER_COUNT) { s.timeIdx = SHUTTER_COUNT - 1; ok = false; }
+  if (s.apIdx >= APERTURE_COUNT) { s.apIdx = APERTURE_COUNT - 1; ok = false; }
+  if (s.meterIsoIdx >= ISO_COUNT) { s.meterIsoIdx = ISO_COUNT - 1; ok = false; }
+  if (s.filmIso < 1 || s.filmIso > 25600) { s.filmIso = FILMS[s.film].boxIso; ok = false; }
+  if (!(s.shootAperture >= 0.f && s.shootAperture <= 1000.f)) { s.shootAperture = 0.f; ok = false; }  // also catches NaN
+  if (s.filterThirds > 60) { s.filterThirds = 60; ok = false; }
+  if (!(s.bellowsMm >= 0.f && s.bellowsMm <= 1500.f)) { s.bellowsMm = 0.f; ok = false; }
+  if (!(s.focalMm >= FOCALS[0] && s.focalMm <= FOCALS[FOCAL_COUNT - 1])) {
+    s.focalMm = 50.f;
+    ok = false;
+  } else {
+    float f = FOCALS[indexOfNearest(FOCALS, FOCAL_COUNT, s.focalMm)];
+    if (f != s.focalMm) { s.focalMm = f; ok = false; }
+  }
+  return ok;
+}
+
 void stepTime(ExposureState& s, int dir) { step(s.timeIdx, SHUTTER_COUNT, dir); }
 void stepAperture(ExposureState& s, int dir) { step(s.apIdx, APERTURE_COUNT, dir); }
 void stepMeterIso(ExposureState& s, int dir) { step(s.meterIsoIdx, ISO_COUNT, dir); }

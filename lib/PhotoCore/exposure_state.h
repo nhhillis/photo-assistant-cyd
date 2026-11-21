@@ -51,6 +51,10 @@ void exposureInit(ExposureState& s);                   // 1/60 @ f/16, meter ISO
 void exposureSetFilm(ExposureState& s, uint8_t film);  // also resets filmIso to the box speed
 ExposureResult exposureCompute(const ExposureState& s);
 
+// Make a state loaded from flash safe to use: clamps indices and values into range, replaces
+// NaN or nonsense with defaults. Returns true if nothing needed fixing.
+bool exposureSanitize(ExposureState& s);
+
 // Step helpers for [-]/[+] buttons (dir = +1 / -1). Clamp at the ends (film wraps around).
 void stepTime(ExposureState& s, int dir);
 void stepAperture(ExposureState& s, int dir);

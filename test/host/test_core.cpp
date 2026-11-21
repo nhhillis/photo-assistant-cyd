@@ -273,6 +273,43 @@ int main() {
     CHECK_NEAR("reset returns to 1.0", tuneGet(hpi), 1.0, 1e-6);
   }
 
+  // --- Loading saved state: garbage from flash must never produce an unusable state
+  {
+    ExposureState good;
+    exposureInit(good);
+    ExposureState e = good;
+    CHECK_NEAR("sanitize leaves a valid state alone", exposureSanitize(e), 1, 0);
+    CHECK_NEAR("sanitize leaves a valid state unchanged", memcmp(&e, &good, sizeof e), 0, 0);
+
+    memset(&e, 0xFF, sizeof e);   // erased flash: indices 255, floats NaN
+    CHECK_NEAR("erased-flash state is reported as fixed", exposureSanitize(e), 0, 0);
+    ExposureResult r = exposureCompute(e);
+    CHECK_NEAR("erased-flash state computes a finite time", isfinite(r.finalTime) && r.finalTime > 0, 1, 0);
+
+    exposureInit(e);
+    e.timeIdx = 200; e.apIdx = 200; e.meterIsoIdx = 200; e.filmIso = 0; e.shootAperture = NAN;
+    e.filterThirds = 250; e.bellowsMm = -5; e.focalMm = 70;
+    CHECK_NEAR("out-of-range fields reported", exposureSanitize(e), 0, 0);
+    CHECK_NEAR("time index clamped", e.timeIdx, SHUTTER_COUNT - 1, 0);
+    CHECK_NEAR("aperture index clamped", e.apIdx, APERTURE_COUNT - 1, 0);
+    CHECK_NEAR("film speed reset to box speed (FP4+ 125)", e.filmIso, 125, 0);
+    CHECK_NEAR("NaN shoot aperture -> same as metered", e.shootAperture, 0, 0);
+    CHECK_NEAR("filter clamped to 60 thirds", e.filterThirds, 60, 0);
+    CHECK_NEAR("negative bellows -> off", e.bellowsMm, 0, 0);
+    CHECK_NEAR("focal 70 snaps to nearest list value (85 is 15 away, 50 is 20)", e.focalMm, 85, 0);
+
+    PinholeState p;
+    pinholeInit(p);
+    PinholeState pg = p;
+    CHECK_NEAR("pinhole sanitize leaves valid state alone", pinholeSanitize(p) && memcmp(&p, &pg, sizeof p) == 0, 1, 0);
+    p.preset = 9; p.holeMm = 5.f;
+    CHECK_NEAR("bad pinhole reported", pinholeSanitize(p), 0, 0);
+    CHECK_NEAR("bad preset -> 0 and hole restored (0.30)", p.preset == 0 && fabs(p.holeMm - 0.30) < 1e-5, 1, 0);
+    memset(&p, 0xFF, sizeof p);
+    pinholeSanitize(p);
+    CHECK_NEAR("erased pinhole state computes a finite time", isfinite(pinholeCompute(p).exp.finalTime), 1, 0);
+  }
+
   // --- Countdown timer (times worked by hand)
   {
     Countdown c;

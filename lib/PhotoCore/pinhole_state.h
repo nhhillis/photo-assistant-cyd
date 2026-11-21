@@ -36,6 +36,7 @@ void pinholeInit(PinholeState& s);                    // preset 0, default expos
 void pinholeSetPreset(PinholeState& s, uint8_t idx);  // loads focal + hole
 bool pinholeMatchesPreset(const PinholeState& s);     // false once focal or hole was edited
 PinholeResult pinholeCompute(const PinholeState& s);
+bool pinholeSanitize(PinholeState& s);  // like exposureSanitize; true if nothing needed fixing
 
 void pinholeStepPreset(PinholeState& s, int dir);  // wraps
 void pinholeStepFocal(PinholeState& s, int dir);   // 5 mm, 10..300

@@ -38,6 +38,16 @@ PinholeResult pinholeCompute(const PinholeState& s) {
   return r;
 }
 
+bool pinholeSanitize(PinholeState& s) {
+  bool ok = exposureSanitize(s.ex);
+  if (s.preset >= PINHOLE_PRESET_COUNT) { s.preset = 0; ok = false; }
+  if (!(s.focalMm >= 10.f && s.focalMm <= 300.f) || !(s.holeMm >= 0.10f && s.holeMm <= 1.00f)) {
+    pinholeSetPreset(s, s.preset);
+    ok = false;
+  }
+  return ok;
+}
+
 void pinholeStepPreset(PinholeState& s, int dir) {
   int n = (int)s.preset + dir;
   if (n < 0) n = PINHOLE_PRESET_COUNT - 1;

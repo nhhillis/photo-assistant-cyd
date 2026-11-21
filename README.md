@@ -6,7 +6,7 @@ A pocket photography assistant for an ESP32 "Cheap Yellow Display" (ESP32-2432S0
 
 | Part | State |
 |---|---|
-| `lib/PhotoCore` (films, exposure stack, pinhole, countdown, keypad entry, sun) | Done, 132 host checks pass |
+| `lib/PhotoCore` (films, exposure stack, pinhole, countdown, keypad entry, sun) | Done, 150+ host checks pass |
 | Home, Exposure, Pinhole, countdown timer, Sun, custom location | Built and flashed to the ILI9341 CYD |
 | Touch calibration, WiFi + NTP clock, per-film tuning | Done |
 | Phase 2 (light meter, GPS, RTC, shot log, shutter trigger) | Not started |

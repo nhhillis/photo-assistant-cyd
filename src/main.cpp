@@ -212,6 +212,7 @@ void toScreen(int rx, int ry, int& x, int& y) {
 #include "countdown_screen.h"
 #include "sun_screen.h"
 #include "location_screens.h"
+#include "state_store.h"
 
 void drawPlaceholder(const char* title) {
   tft.fillScreen(TFT_BLACK);
@@ -222,6 +223,7 @@ void drawPlaceholder(const char* title) {
 }
 
 void go(Screen s) {
+  if (stateDirty) saveState();  // leaving a screen: save now
   screen = s;
   if (s == HOME) drawHome();
   else if (s == SUN) drawSun();
@@ -244,6 +246,7 @@ void setup() {
   loadCalibration();
   loadCustomLoc();
   loadTune();
+  loadState();
   delay(100);
   if (!cal.ok || ts.touched()) runCalibration();
   Serial.printf("Films loaded: %u\n", pc::FILM_COUNT);
@@ -256,6 +259,7 @@ void loop() {
     if (screen == HOME) drawHomeFooter();
     else if (screen == SUN) drawSun();
   }
+  stateTick();
   if (screen == COUNTDOWN) countdownTick();
   static uint32_t lastTap = 0;
   if (ts.tirqTouched() && ts.touched() && millis() - lastTap > 250) {
@@ -263,6 +267,7 @@ void loop() {
     TS_Point p = ts.getPoint();
     int x, y;
     toScreen(p.x, p.y, x, y);
+    if (screen == EXPOSURE || screen == PINHOLE || screen == SUN || screen == LOC_EDIT) markStateDirty();
     if (screen == HOME) {
       if (y >= 298 && ckState == CK_FAILED) {  // tap the footer to retry a failed sync
         clockBegin();

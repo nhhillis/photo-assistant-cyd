@@ -12,7 +12,7 @@ ESP32 "Cheap Yellow Display" photography assistant for Howard: pinhole, general 
 
 | Part | State |
 |---|---|
-| `lib/PhotoCore/` | Done, 132 host checks. Portable C++, no Arduino includes: films, exposure, exposure_state, pinhole_state, countdown, numentry, solar. |
+| `lib/PhotoCore/` | Done, 150+ host checks. Portable C++, no Arduino includes: films, exposure, exposure_state, pinhole_state, countdown, numentry, solar. |
 | UI (`src/`) | Built and running on the ILI9341 CYD in portrait: Home, Exposure (4 pages incl. film tuning), Pinhole, countdown timer, Sun, custom location editor + keypad, touch calibration. |
 | Clock | WiFi + NTP at boot (`src/clock_sync.h`), credentials in gitignored `src/wifi_secrets.h` (template: `wifi_secrets.example.h`). |
 | Phase 2 | Not started: light meter, GPS, RTC, shot log, shutter trigger. A Settings screen (WiFi entry on the device) is not built. |
@@ -34,7 +34,7 @@ ESP32 "Cheap Yellow Display" photography assistant for Howard: pinhole, general 
 
 - TFT_eSPI font 6 (big digits) has no `+` glyph; draw it as shapes. Font 6 and 7 are digits only, so text with letters tops out at font 4 (use `setTextSize(2)` to enlarge).
 - `ESP32 NVS` keys are limited to 15 characters; per-film tuning is keyed by film id, so keep ids short.
-- `exposureInit` must run before `loadTune()` in `setup()`.
+- `exposureInit` and `pinholeInit` must run before `loadTune()` and `loadState()` in `setup()`. Exposure/Pinhole settings and the selected location are saved to flash (`src/state_store.h`) 3 s after the last tap; loaded data always goes through `exposureSanitize`/`pinholeSanitize`.
 
 ## Decisions already made
 
