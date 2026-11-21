@@ -1,71 +1,49 @@
-# Screens (phase 1) - 320x240 landscape, touch-first
+# Screens - 240x320 portrait, touch-first
 
-Large tap targets (>= 40 px) for cold or gloved fingers. Core math is in `lib/PhotoCore`; screens only call it.
+Large tap targets (>= 40 px) for cold or gloved fingers. Core math is in `lib/PhotoCore`; screens only call it. Colors: dark navy background, amber accents, results in green.
 
 ## Home
-```
-+--------------------------------------+
-| Photo Assistant            Edmond, OK|
-| +--------------+ +-----------------+ |
-| |   Exposure   | |     Pinhole     | |
-| +--------------+ +-----------------+ |
-| +--------------+ +-----------------+ |
-| | Sun / Golden | |   (phase 2)     | |
-| +--------------+ +-----------------+ |
-| WiFi: synced 10:41   [Settings]      |
-+--------------------------------------+
-```
+2x2 grid of tiles (Exposure, Pinhole, Sun / Golden, a dimmed Light Meter "coming soon"), a location chip under the header, and a footer with the clock status ("Clock: synced 10:41 AM", "syncing...", or "sync failed - tap" to retry) and the version.
 
-## Exposure (reciprocity + compensation stack)
-Input is the time you metered (handheld meter or phone), then the stack applies in order:
-metered time -> aperture change -> ISO change -> filter/ND stops -> bellows -> reciprocity.
-```
-+--------------------------------------+
-| Film: [Ilford FP4+  v]  ISO 125      |
-| Metered: 1/60 @ f/16   ISO 100  [-][+]|
-| Filter/ND: +0 stops      [-][+]      |
-| Bellows ext: 0 mm        [-][+]      |
-|--------------------------------------|
-|  FINAL:  4 m 05 s     (+3.3 stops)   |
-|  Dev: -20%     [!] beyond data        |
-+--------------------------------------+
-```
-- Warning banner: color films ("experimental, expect color shift"); `beyondData` ("extrapolated").
-- Tap the final time to start a countdown (big digits, buzzer/backlight flash at end).
+## Shared row UI (`src/rowpage.h`)
+Used by the Exposure, Pinhole and location editor screens.
+- Result panel on top (0-110 px).
+- Three rows of 50 px high buttons: `-` (60 px) | value | `+` (60 px), 6 px gaps. Tapping the middle of a row can open a keypad (location editor) or reset (tuning page).
+- Bottom: Home, `<` previous page, `>` next page.
+- Tap the panel to start the countdown when the exposure is 1 s or longer.
 
-## Pinhole
-```
-+--------------------------------------+
-| Focal 50mm   Hole 0.30mm   [presets] |
-| f/167   optimal 0.315mm   FOV 58 deg|
-|--------------------------------------|
-| Meter at: f/16  1/125  ISO 100       |
-| -> Pinhole time (metered): 14.1 s    |
-| Film: FP4+ -> corrected 4 m 05 s     |
-+--------------------------------------+
-```
-Presets: 50 mm / 0.30 mm (f/167) and 35 mm / 0.26 mm (f/135). The optimal diameter uses the Rayleigh formula `1.9 * sqrt(f * 550 nm)`, which matches both of your pinholes.
+## Exposure (four pages)
+The stack applies in order: metered time -> shoot aperture -> ISO -> filter/ND -> bellows -> reciprocity (tuned).
+1. **SETUP**: Film, Film speed (EI, defaults to the box speed), Shoot at aperture
+2. **METER**: Metered time, Metered at aperture, Meter ISO
+3. **COMPENSATION**: Filter/ND (1/3 stops), Bellows extension (jumps past the focal length on the first +), Lens focal length (18, 35, 50, 85 mm)
+4. **FILM TUNING**: Film, Reciprocity tune (x0.50 to x2.00, saved per film), Reset this film
+
+Aperture list (metered and shoot): full stops from f/1 to f/256 plus 135, 137, 167, 215.
+
+Panel: final time in large green digits, stops added (plus development change for films with data), and warnings in red: "Color film: experimental, expect shift", "Beyond published data: extrapolated". The stops line turns amber and reads "tuned" when a film's tuning is not x1.00.
+
+## Pinhole (three pages)
+Shoot aperture = focal length / hole diameter, then the same stack as Exposure.
+1. **PINHOLE**: preset (50 mm / 0.30 mm = f/167, 35 mm / 0.26 mm = f/135), focal length (5 mm steps), hole diameter (0.01 mm steps). Editing either value shows the preset as "custom".
+2. **FILM + METER**: Film, Metered time, Metered at aperture
+3. **ISO + FILTER**: Meter ISO, Film speed (EI), Filter/ND
+
+Panel: final time, f-number and field of view (along one side of a 56 mm 6x6 frame), optimal hole (Rayleigh, `1.9 * sqrt(f * 550 nm)`) and stops added. Film tuning set on the Exposure screen applies here too.
+
+## Countdown timer
+Opens from the green time. READY -> START -> PAUSE/RESUME, STOP resets, BACK returns to the screen that started it. Digits are `M:SS` (or `H:MM:SS`, tenths under 10 s), amber under 10 s, with a progress bar. At zero the backlight and digits flash for 6 s.
 
 ## Sun / Golden hour
-```
-+--------------------------------------+
-| < Edmond, OK >        Sat Nov 21     |
-| Civil dawn   6:44   Blue  6:34-6:55  |
-| Sunrise      7:12   Golden -> 7:50   |
-| Golden eve   4:42   Sunset  5:20     |
-| Blue eve     5:37-5:58   Dusk 5:47   |
-| [Custom lat/lon]                     |
-+--------------------------------------+
-```
-Presets: Edmond (default), Broken Bow, Okarche, Tulsa. **Custom**: type lat/lon and a UTC offset, saved to flash. A future GPS fills the same lat/lon fields.
+`<` / `>` cycle the presets (Edmond default, Broken Bow, Okarche, Tulsa) and the saved Custom location. Rows: civil dawn, sunrise, golden hour ends, golden hour starts, sunset, blue hour ends. The date comes from the synced clock; if the clock never synced the firmware build date is used and the screen says so in red.
 
-Definitions used: sunrise/sunset at -0.833 deg; golden hour = sunrise/sunset to +6 deg; blue hour = -4 to -8 deg; civil twilight = -6 deg.
+Definitions: sunrise/sunset at -0.833 deg; golden hour = sunrise/sunset to +6 deg; blue hour = -4 to -8 deg; civil twilight = -6 deg.
 
-## Settings
-- WiFi (home or phone hotspot), NTP sync on boot when WiFi is available
-- Timezone rule (default US Central with DST)
-- Film profile tuning (P multiplier per film)
-- Custom locations
+## Custom location
+Sun screen -> **Custom...**. Page 1: latitude and longitude (`-`/`+` nudge 0.01 deg, about 1 km; tap the value for a numeric keypad, with south and west negative). Page 2: UTC offset (standard time) and US daylight saving on/off. The panel previews today's sunrise and sunset. **Home** saves it to flash and selects it. A future GPS fills the same fields.
+
+## Touch calibration
+Two crosshair taps on first boot (saved to flash). Hold a finger on the screen while booting to recalibrate.
 
 ## Phase 2 (not in this scope)
-Light meter (BH1750 / TSL2591), DS3231 RTC, GPS (NEO-6M), shot log to SD, shutter-head trigger.
+Light meter (BH1750 / TSL2591), DS3231 RTC, GPS (NEO-6M), shot log to SD, shutter-head trigger. A Settings screen (WiFi entry on the device, timezone rules) is not built; WiFi credentials live in `src/wifi_secrets.h`.

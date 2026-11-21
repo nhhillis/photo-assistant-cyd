@@ -35,6 +35,10 @@ Kentmere is included because it was on your first list. Delete the two lines if 
 3. Ilford's chart range is assumed to be ~100 s for the `beyondData` flag. Adjust `dataLimit` if you find a documented range.
 4. Reciprocity depends on light level, not only time. Real exposure in changing light (sunset) drifts, so very long exposures are guidance, not guarantees.
 
-## Planned: user tuning
+## Box speeds
 
-Per-film `P` override (and multiplier) saved to flash with `Preferences`, so a test roll can adjust the curve without reflashing.
+Each film carries its manufacturer's box ISO (T-Max 100: 100, T-Max 400: 400, Tri-X: 400, Delta 100: 100, FP4+: 125, HP5+: 400, Pan F+: 50, Ortho+: 80, Kentmere 100/400, Gold 200: 200, Ektar 100: 100, Portra 160: 160). It is the default film speed (EI) on the exposure screen. Verify against the data sheets.
+
+## User tuning
+
+Each film has a tuning factor k (x0.50 to x2.00, default x1.00) saved to flash, set on the Exposure screen's FILM TUNING page. It scales the stops reciprocity adds: `Tc = Tm * 2^(k * stops)`. For a Power film this equals `P' = 1 + k * (P - 1)`. Use it after a test roll shows the published curve is too short or too long; it does not change the development advice.
