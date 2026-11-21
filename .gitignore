@@ -2,3 +2,4 @@
 .vscode/
 test/host/test_core
 *.o
+test/host/test_core.exe
