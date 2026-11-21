@@ -12,6 +12,8 @@
 #include "solar.h"
 #include <string.h>
 #include "countdown.h"
+#include "pinhole_state.h"
+#include "clock_sync.h"
 
 // CYD touch is on its own SPI bus
 #define T_CS 33
@@ -121,6 +123,15 @@ void drawTile(const Tile& t, bool pressed) {
   tft.drawCentreString(t.sub, t.x + t.w / 2, t.y + 86, 1);
 }
 
+void drawHomeFooter() {
+  char t[40];
+  clockStatusText(t, sizeof t);
+  tft.fillRect(0, 300, 240, 20, C_BG);
+  tft.setTextColor(ckState == CK_FAILED ? RGB(255, 90, 70) : C_DIM, C_BG);
+  tft.drawString(t, 8, 306, 1);
+  tft.drawRightString("v0.1", 232, 306, 1);
+}
+
 void drawHome() {
   tft.fillScreen(C_BG);
   // header: mini lens mark, title, location chip
@@ -136,9 +147,7 @@ void drawHome() {
   tft.drawCentreString(loc, 120, 48, 2);
   tft.drawFastHLine(8, 71, 224, RGB(40, 46, 66));
   for (auto& t : tiles) drawTile(t, false);
-  tft.setTextColor(C_DIM, C_BG);
-  tft.drawString("Clock: not synced", 8, 306, 1);
-  tft.drawRightString("v0.1", 232, 306, 1);
+  drawHomeFooter();
 }
 
 // ---- Touch calibration: two corner taps, saved to flash (hold a finger on the screen at boot to redo) ----
@@ -194,30 +203,11 @@ void toScreen(int rx, int ry, int& x, int& y) {
   y = CAL_AY + (float)(ry - cal.y1) * (CAL_BY - CAL_AY) / (cal.y2 - cal.y1);
 }
 
-void drawSun() {
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawString(pc::PRESET_LOCATIONS[locIdx].name, 10, 10, 4);
-  time_t now = time(nullptr);  // needs WiFi NTP sync first (TODO)
-  struct tm lt;
-  localtime_r(&now, &lt);
-  pc::SunDay s = pc::sunDay(pc::PRESET_LOCATIONS[locIdx], lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday);
-  char a[16], b[16], c[16], d[16];
-  pc::formatClock(s.sunrise, a, 16);
-  pc::formatClock(s.goldenEveningStart, b, 16);
-  pc::formatClock(s.sunset, c, 16);
-  pc::formatClock(s.blueEveningEnd, d, 16);
-  tft.drawString(String("Sunrise  ") + a, 10, 60, 4);
-  tft.drawString(String("Golden   ") + b, 10, 100, 4);
-  tft.drawString(String("Sunset   ") + c, 10, 140, 4);
-  tft.drawString(String("Blue end ") + d, 10, 180, 4);
-}
-
-#include "pinhole_state.h"
 #include "rowpage.h"
 #include "exposure_screen.h"
 #include "pinhole_screen.h"
 #include "countdown_screen.h"
+#include "sun_screen.h"
 
 void drawPlaceholder(const char* title) {
   tft.fillScreen(TFT_BLACK);
@@ -255,6 +245,10 @@ void setup() {
 }
 
 void loop() {
+  if (clockTick()) {  // sync state changed: refresh whatever shows the clock
+    if (screen == HOME) drawHomeFooter();
+    else if (screen == SUN) drawSun();
+  }
   if (screen == COUNTDOWN) countdownTick();
   static uint32_t lastTap = 0;
   if (ts.tirqTouched() && ts.touched() && millis() - lastTap > 250) {
@@ -263,6 +257,10 @@ void loop() {
     int x, y;
     toScreen(p.x, p.y, x, y);
     if (screen == HOME) {
+      if (y >= 298 && ckState == CK_FAILED) {  // tap the footer to retry a failed sync
+        clockBegin();
+        drawHomeFooter();
+      }
       for (auto& t : tiles)
         if (t.enabled && x >= t.x && x < t.x + t.w && y >= t.y && y < t.y + t.h) {
           drawTile(t, true);
@@ -279,6 +277,8 @@ void loop() {
       int act = pinholeTap(x, y);
       if (act == 1) go(HOME);
       else if (act == 2) startCountdownScreen(pc::pinholeCompute(ph).exp.finalTime, pc::FILMS[ph.ex.film].name, PINHOLE);
+    } else if (screen == SUN) {
+      if (sunTap(x, y)) go(HOME);
     } else {
       go(HOME);
     }

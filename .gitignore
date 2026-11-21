@@ -3,3 +3,4 @@
 test/host/test_core
 *.o
 test/host/test_core.exe
+src/wifi_secrets.h
